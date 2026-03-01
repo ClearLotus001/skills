@@ -1,0 +1,40 @@
+﻿{
+  "exact": {
+    "column missing": "列缺失",
+    "sheet missing": "工作表缺失"
+  },
+  "regex": [
+    {
+      "pattern": "^missing required column '([^']+)' in sheet '([^']+)'$",
+      "zh": "工作表 '{1}' 缺少必需列 '{0}'"
+    },
+    {
+      "pattern": "^dataset '([^']+)' expects missing sheet '([^']+)'$",
+      "zh": "数据集 '{0}' 期望的工作表 '{1}' 不存在"
+    },
+    {
+      "pattern": "^relation source dataset '([^']+)' is undefined$",
+      "zh": "关联规则中的源数据集 '{0}' 未定义"
+    },
+    {
+      "pattern": "^relation target dataset '([^']+)' is undefined$",
+      "zh": "关联规则中的目标数据集 '{0}' 未定义"
+    },
+    {
+      "pattern": "^source sheet '([^']+)' for dataset '([^']+)' not found$",
+      "zh": "数据集 '{1}' 的源工作表 '{0}' 未找到"
+    },
+    {
+      "pattern": "^target sheet '([^']+)' for dataset '([^']+)' not found$",
+      "zh": "数据集 '{1}' 的目标工作表 '{0}' 未找到"
+    },
+    {
+      "pattern": "^rule_id '([^']+)' appears in multiple rule groups$",
+      "zh": "规则 ID '{0}' 在多个规则组中重复出现"
+    },
+    {
+      "pattern": "^quality gate failed: errors exceed ([0-9]+)$",
+      "zh": "质量门禁失败：错误数量超过阈值 {0}"
+    }
+  ]
+}

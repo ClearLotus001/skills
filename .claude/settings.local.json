@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__filesystem__directory_tree",
+      "mcp__filesystem__list_directory",
+      "mcp__filesystem__read_text_file",
+      "Bash(python -m py_compile validation_common.py)",
+      "Bash(python -m py_compile validate_global.py)",
+      "Bash(python -m py_compile local_rule_engine.py)",
+      "Bash(python -m py_compile validate_local.py)",
+      "Bash(python -m py_compile validate_relations.py)",
+      "Bash(python -m py_compile render_report.py)",
+      "Bash(python -m py_compile parse_excel.py)",
+      "Bash(python -m py_compile run_validator.py)",
+      "Bash(python -m py_compile common.py)",
+      "Bash(python -m py_compile compile_rules.py)",
+      "Bash(python -m py_compile state_manager.py)",
+      "Bash(python -c \":*)",
+      "Bash(python scripts/run_validator.py --inputs \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --rules \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\rules.json\" --out \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --allow-parser-warning)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/run_validator.py --inputs \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --rules \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\rules.json\" --out \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --allow-parser-warning)",
+      "Bash(PYTHONIOENCODING=utf-8 python scripts/run_validator.py --inputs \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --rules \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\rules.json\" --out \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\output\" --allow-parser-warning)",
+      "Bash(PYTHONIOENCODING=utf-8 python -c \":*)",
+      "Bash(PYTHONIOENCODING=utf-8 python excel-config-validator/scripts/run_validator.py /c/Users/15095/Desktop/Test --out /c/Users/15095/Desktop/Test/output)",
+      "Bash(PYTHONIOENCODING=utf-8 python excel-config-validator/scripts/run_validator.py --inputs /c/Users/15095/Desktop/Test --rules /c/Users/15095/Desktop/Test/rules.json --out /c/Users/15095/Desktop/Test/output)"
+    ]
+  }
+}

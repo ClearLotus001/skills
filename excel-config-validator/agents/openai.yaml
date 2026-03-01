@@ -1,0 +1,44 @@
+interface:
+  display_name: "Excel Config Validator"
+  short_description: "Validate Excel/CSV configs with traceable, rule-based check reports."
+  default_prompt: >
+    Use $excel-config-validator to validate multi-file Excel/CSV configurations
+    against rules.json and generate JSON, Markdown, and HTML reports.
+
+instructions: |
+  ## 核心职责
+  根据 rules.json 规则定义，对 Excel/CSV 配置文件执行确定性校验，生成可追溯的结构化报告。
+
+  ## 执行约束
+  - 必须通过 `python scripts/run_validator.py` 作为唯一入口执行。
+  - 必须指定 --inputs（输入文件或目录）、--rules（规则文件）、--out（输出目录）。
+  - 校验引擎采用 chunk 流式处理，大文件不会导致内存溢出。
+  - 单条规则异常不会中断整体流程，异常会被记录在 issues 中并继续执行。
+  - 所有输出文件必须生成在 --out 目录内。
+
+  ## 标准执行命令
+  ```bash
+  python scripts/run_validator.py \
+    --inputs <file_or_dir> \
+    --rules <rules.json> \
+    --out <output_dir> \
+    [--rule-set <name>] \
+    [--max-errors <N>] \
+    [--allow-parser-warning] \
+    [--chunk-size 2000] \
+    [--keep-formula] \
+    [--resume]
+  ```
+
+  ## 输出文件
+  - result.json — 完整结构化结果（含 issues + 统计）
+  - issues.csv — 表格化问题清单
+  - report.md — Markdown 摘要报告
+  - report.html — 交互式 HTML 报告（筛选/排序/分页）
+  - run_state.json — 运行状态（支持断点恢复）
+  - compiled_rules.json — 编译后规则（含摘要统计）
+  - _stages/ — 各阶段中间结果
+
+  ## 不适用场景
+  - 开放式浏览或无具体校验目标的讨论
+  - 非结构化数据分析

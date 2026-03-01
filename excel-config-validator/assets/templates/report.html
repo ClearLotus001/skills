@@ -1,0 +1,1970 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{title}}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=LXGW+WenKai:wght@400;700&display=swap');
+
+    :root {
+      --forest: #2D5016;
+      --forest-light: #3A6B1E;
+      --sage: #7C9A5E;
+      --sage-light: #9DB87E;
+      --moss: #8B9E6B;
+      --moss-pale: rgba(139, 158, 107, 0.12);
+      --bark: #5C4033;
+      --bark-light: #7A5C4A;
+      --cream: #FAF8F0;
+      --parchment: #F5F1E6;
+      --ivory: #FFFDF5;
+      --ink: #2C3E2D;
+      --ink-light: #556B52;
+      --muted: #7A8B6E;
+      --line: rgba(92, 64, 51, 0.12);
+      --line-strong: rgba(92, 64, 51, 0.22);
+      --error: #8B3A2A;
+      --error-bg: rgba(139, 58, 42, 0.10);
+      --error-border: rgba(139, 58, 42, 0.25);
+      --warn: #8B6914;
+      --warn-bg: rgba(139, 105, 20, 0.10);
+      --warn-border: rgba(139, 105, 20, 0.25);
+      --info: #2A6B5A;
+      --info-bg: rgba(42, 107, 90, 0.10);
+      --info-border: rgba(42, 107, 90, 0.25);
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow-sm: 0 1px 3px rgba(44, 62, 45, 0.06);
+      --shadow: 0 4px 16px rgba(44, 62, 45, 0.08);
+      --shadow-lg: 0 8px 32px rgba(44, 62, 45, 0.10);
+      --font-display: "Noto Serif SC", "STZhongsong", "Songti SC", "SimSun", serif;
+      --font-body: "LXGW WenKai", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: var(--ink);
+      background: var(--cream);
+      background-image:
+        radial-gradient(ellipse at 0% 0%, rgba(45, 80, 22, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 100% 100%, rgba(92, 64, 51, 0.05) 0%, transparent 50%),
+        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    }
+
+    /* ── App shell: fixed 100vh grid ── */
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 6px;
+      padding: 12px 16px;
+    }
+
+    /* ── Hero / Header ── */
+    .hero {
+      background: var(--ivory);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 14px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+      flex: 1 1 0;
+      overflow: hidden;
+    }
+
+    .hero-left > div {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .hero-icon {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--forest), var(--sage));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(45, 80, 22, 0.2);
+    }
+
+    .hero-icon svg { width: 20px; height: 20px; }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--forest);
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--moss-pale);
+      border: 1px solid rgba(139, 158, 107, 0.2);
+      font-size: 11px;
+      color: var(--ink-light);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* ── Stats bar ── */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .stat-chip.total {
+      background: rgba(45, 80, 22, 0.08);
+      border-color: rgba(45, 80, 22, 0.15);
+      color: var(--forest);
+    }
+
+    .stat-chip.error {
+      background: var(--error-bg);
+      border-color: var(--error-border);
+      color: var(--error);
+    }
+
+    .stat-chip.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+      color: var(--warn);
+    }
+
+    .stat-chip.info {
+      background: var(--info-bg);
+      border-color: var(--info-border);
+      color: var(--info);
+    }
+
+    .stat-chip .stat-num {
+      font-size: 14px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+    }
+
+    /* ── Workspace ── */
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      background: var(--ivory);
+      box-shadow: var(--shadow);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+      background:
+        linear-gradient(180deg, rgba(245, 241, 230, 0.5) 0%, rgba(250, 248, 240, 0.3) 100%),
+        var(--parchment);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar { display: none; }
+
+    .block {
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(255, 253, 245, 0.8);
+      overflow: hidden;
+    }
+
+    .block-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      cursor: default;
+      user-select: none;
+      border-bottom: 1px solid transparent;
+      transition: border-color 150ms;
+    }
+
+    .block-head.collapsible {
+      cursor: pointer;
+    }
+
+    .block-head.collapsible:hover {
+      background: rgba(139, 158, 107, 0.06);
+    }
+
+    .block-head h2 {
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--bark);
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .block-head h2::before {
+      content: "";
+      display: inline-block;
+      width: 3px;
+      height: 12px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--sage), var(--forest));
+      flex-shrink: 0;
+    }
+
+    .block-head .toggle-icon {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      transition: transform 200ms ease;
+    }
+
+    .block.collapsed .toggle-icon {
+      transform: rotate(-90deg);
+    }
+
+    .block-body {
+      padding: 8px 10px;
+      transition: padding 150ms;
+    }
+
+    .block.collapsed .block-body {
+      display: none;
+    }
+
+    .block.collapsed .block-head {
+      border-bottom-color: transparent;
+    }
+
+    .block:not(.collapsed) .block-head {
+      border-bottom-color: var(--line);
+    }
+
+    /* ── Filter fields ── */
+    .field {
+      margin-bottom: 7px;
+    }
+
+    .field:last-child { margin-bottom: 0; }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 3px;
+      font-weight: 500;
+    }
+
+    /* ── Custom Select ── */
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap select {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 0;
+      height: 0;
+    }
+
+    .cs-trigger {
+      width: 100%;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--ivory);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0 26px 0 8px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: border-color 150ms, box-shadow 150ms;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cs-trigger::after {
+      content: "";
+      position: absolute;
+      right: 9px;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid var(--sage);
+      border-bottom: 1.5px solid var(--sage);
+      transform: translateY(-65%) rotate(45deg);
+      pointer-events: none;
+      transition: transform 200ms ease;
+    }
+
+    .cs-trigger:hover {
+      border-color: var(--sage);
+    }
+
+    .select-wrap.cs-open .cs-trigger {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.18);
+      border-radius: 6px 6px 0 0;
+    }
+
+    .select-wrap.cs-open .cs-trigger::after {
+      transform: translateY(-35%) rotate(-135deg);
+    }
+
+    .cs-options {
+      display: none;
+      position: fixed;
+      max-height: 180px;
+      overflow-y: auto;
+      scrollbar-width: none;
+      background: var(--ivory);
+      border: 1px solid var(--sage);
+      border-top: 1px solid var(--line);
+      border-radius: 0 0 6px 6px;
+      z-index: 999;
+      box-shadow: 0 6px 16px rgba(44, 62, 45, 0.12);
+    }
+
+    .cs-options::-webkit-scrollbar { display: none; }
+
+    .select-wrap.cs-open .cs-options {
+      display: block;
+    }
+
+    .cs-option {
+      padding: 6px 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 100ms;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cs-option:hover {
+      background: rgba(139, 158, 107, 0.12);
+    }
+
+    .cs-option.cs-selected {
+      background: rgba(139, 158, 107, 0.18);
+      font-weight: 700;
+      color: var(--forest);
+    }
+
+    input[type="text"], input:not([type]) {
+      width: 100%;
+      height: 30px;
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      background: var(--ivory);
+      color: var(--ink);
+      font-family: var(--font-body);
+      font-size: 12px;
+      padding: 0 8px;
+      outline: none;
+      transition: border-color 150ms, box-shadow 150ms;
+    }
+
+    input:hover {
+      border-color: var(--sage);
+    }
+
+    input:focus {
+      border-color: var(--sage);
+      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.18);
+    }
+
+    input::placeholder {
+      color: rgba(122, 139, 110, 0.6);
+    }
+
+    /* ── Buttons ── */
+    .btns {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      height: 28px;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 12px;
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--forest), var(--forest-light));
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(45, 80, 22, 0.2);
+    }
+
+    button.primary:hover {
+      box-shadow: 0 4px 12px rgba(45, 80, 22, 0.3);
+      transform: translateY(-1px);
+    }
+
+    button.ghost {
+      background: var(--ivory);
+      color: var(--bark);
+      border: 1px solid var(--line-strong);
+    }
+
+    button.ghost:hover {
+      background: var(--parchment);
+      border-color: var(--bark-light);
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, var(--bark), var(--bark-light));
+      color: #fff;
+      box-shadow: 0 2px 6px rgba(92, 64, 51, 0.15);
+    }
+
+    button.secondary:hover {
+      box-shadow: 0 4px 12px rgba(92, 64, 51, 0.25);
+      transform: translateY(-1px);
+    }
+
+    /* ── Quick filter chips ── */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid transparent;
+      transition: all 120ms ease;
+    }
+
+    .chip.all {
+      background: rgba(44, 62, 45, 0.08);
+      border-color: rgba(44, 62, 45, 0.15);
+      color: var(--ink);
+    }
+
+    .chip.error {
+      color: var(--error);
+      background: var(--error-bg);
+      border-color: var(--error-border);
+    }
+
+    .chip.warn {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+    }
+
+    .chip.info {
+      color: var(--info);
+      background: var(--info-bg);
+      border-color: var(--info-border);
+    }
+
+    .chip:hover { opacity: 0.85; }
+
+    .chip.active {
+      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.3) inset;
+    }
+
+    /* ── Sidebar lists ── */
+    .list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 4px;
+      max-height: 180px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .list::-webkit-scrollbar { display: none; }
+
+    .list li {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(250, 248, 240, 0.6);
+      padding: 6px 8px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--ink-light);
+      transition: border-color 120ms, background 120ms;
+    }
+
+    .list .title {
+      color: var(--bark);
+      font-weight: 700;
+      font-size: 12px;
+      margin-bottom: 1px;
+    }
+
+    .rule-item {
+      cursor: pointer;
+    }
+
+    .rule-item:hover {
+      border-color: rgba(124, 154, 94, 0.4);
+      background: rgba(139, 158, 107, 0.06);
+    }
+
+    /* ── Snapshot pre ── */
+    pre {
+      margin: 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: rgba(250, 248, 240, 0.6);
+      max-height: 120px;
+      overflow: auto;
+      scrollbar-width: none;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--ink-light);
+      line-height: 1.5;
+    }
+
+    pre::-webkit-scrollbar { display: none; }
+
+    /* ── Main content area ── */
+    .main {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 0;
+      background: var(--cream);
+    }
+
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 16px;
+      background: var(--ivory);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .head h2 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--forest);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .head h2::before {
+      content: "";
+      width: 4px;
+      height: 16px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--sage), var(--forest));
+    }
+
+    .live {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      padding: 6px 16px;
+      background: rgba(245, 241, 230, 0.5);
+      border-bottom: 1px solid var(--line);
+      min-height: 32px;
+      align-items: center;
+    }
+
+    .pill {
+      border-radius: 999px;
+      border: 1px solid var(--line-strong);
+      padding: 2px 9px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--ivory);
+      color: var(--ink-light);
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Table area (the ONLY scrollable zone) ── */
+    .table-wrap, .group-wrap {
+      min-height: 0;
+      position: relative;
+      overflow: auto;
+      scrollbar-width: none;
+      background: var(--cream);
+    }
+
+    .table-wrap::-webkit-scrollbar,
+    .group-wrap::-webkit-scrollbar {
+      display: none;
+    }
+
+    table {
+      width: 100%;
+      min-width: 860px;
+      border-collapse: collapse;
+      font-size: 12px;
+      table-layout: fixed;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      background: var(--parchment);
+      border-bottom: 2px solid rgba(124, 154, 94, 0.25);
+      color: var(--bark);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      overflow: hidden;
+      line-height: 1.5;
+    }
+
+    tr:hover td {
+      background: rgba(139, 158, 107, 0.04);
+    }
+
+    .rule-main {
+      font-weight: 700;
+      color: var(--bark);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .rule-sub {
+      margin-top: 1px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Severity badges ── */
+    .sev {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .sev.error {
+      color: var(--error);
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+    }
+
+    .sev.warn {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border: 1px solid var(--warn-border);
+    }
+
+    .sev.info {
+      color: var(--info);
+      background: var(--info-bg);
+      border: 1px solid var(--info-border);
+    }
+
+    .loc {
+      display: block;
+      max-width: 100%;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      border: 1px solid var(--line);
+      background: rgba(245, 241, 230, 0.6);
+      color: var(--ink-light);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Grouped view ── */
+    .group-wrap {
+      padding: 12px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+    }
+
+    .g-card {
+      border-radius: var(--radius);
+      border: 1px solid var(--line-strong);
+      overflow: hidden;
+      background: var(--ivory);
+    }
+
+    .g-head {
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: var(--parchment);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .g-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .g-badge {
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 1px 7px;
+      font-size: 11px;
+      background: var(--ivory);
+      font-weight: 600;
+      color: var(--ink-light);
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .g-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .g-item {
+      padding: 6px 10px;
+      border-top: 1px dashed var(--line);
+      display: grid;
+      gap: 2px;
+    }
+
+    .g-item:first-child { border-top: none; }
+
+    .g-loc {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    .g-msg {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--bark);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Empty state ── */
+    .empty {
+      position: absolute;
+      inset: 40px 12px 12px 12px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      background: rgba(250, 248, 240, 0.5);
+    }
+
+    .empty svg {
+      display: block;
+      margin: 0 auto 8px;
+      opacity: 0.4;
+    }
+
+    [hidden] { display: none !important; }
+
+    /* ── Ellipsis truncation ── */
+    .ellipsis {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Global Tooltip ── */
+    .g-tooltip {
+      position: fixed;
+      z-index: 9999;
+      max-width: 420px;
+      min-width: 60px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: var(--ink);
+      color: var(--cream);
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 120ms ease;
+    }
+
+    .g-tooltip.visible { opacity: 1; }
+
+    /* ── Leaf decorations ── */
+    .leaf-accent {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0.04;
+    }
+
+    /* ── Responsive ── */
+
+    /* Large tablets / narrow desktops */
+    @media (max-width: 1200px) {
+      .hero {
+        padding: 10px 14px;
+        gap: 10px;
+      }
+
+      .hero h1 {
+        font-size: 16px;
+      }
+
+      .stats-bar {
+        gap: 2px;
+      }
+
+      .stat-chip {
+        padding: 3px 7px;
+        font-size: 11px;
+      }
+
+      .stat-chip .stat-num {
+        font-size: 12px;
+      }
+
+      .workspace {
+        grid-template-columns: 260px 1fr;
+      }
+    }
+
+    /* Tablets */
+    @media (max-width: 1000px) {
+      .app {
+        padding: 8px;
+        grid-template-rows: auto 1fr;
+      }
+
+      .hero {
+        flex-direction: column;
+        align-items: stretch;
+        border-radius: var(--radius-lg);
+      }
+
+      .hero-left {
+        gap: 10px;
+      }
+
+      .stats-bar {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .sidebar {
+        max-height: 200px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        overflow-y: auto;
+        padding: 6px;
+        gap: 4px;
+      }
+
+      .sidebar .block {
+        flex: 1 1 200px;
+        min-width: 180px;
+      }
+
+      .main {
+        grid-template-rows: auto auto 1fr auto;
+      }
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .app {
+        padding: 4px;
+      }
+
+      .hero {
+        padding: 8px 10px;
+      }
+
+      .hero-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+      }
+
+      .hero-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .hero h1 {
+        font-size: 14px;
+      }
+
+      .hero-meta {
+        gap: 4px;
+        font-size: 10px;
+      }
+
+      .hero-tag {
+        font-size: 10px;
+        padding: 1px 6px;
+      }
+
+      .stat-chip {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+
+      .stat-chip .stat-num {
+        font-size: 11px;
+      }
+
+      .sidebar {
+        max-height: 160px;
+        flex-direction: column;
+      }
+
+      .sidebar .block {
+        flex: none;
+        min-width: 0;
+      }
+
+      .head {
+        padding: 8px 10px;
+      }
+
+      .head h2 {
+        font-size: 13px;
+      }
+
+      .pills {
+        padding: 4px 10px;
+      }
+
+      .pagination {
+        padding: 6px 10px;
+        gap: 2px;
+      }
+
+      .pagination button {
+        min-width: 24px;
+        height: 24px;
+        font-size: 10px;
+      }
+    }
+
+    /* ── Subtle entrance animation ── */
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .app {
+      animation: fadeSlideIn 400ms ease-out;
+    }
+
+    /* ── Pagination controls ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 16px;
+      background: var(--ivory);
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .pagination button {
+      min-width: 28px;
+      height: 26px;
+      padding: 0 6px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--ivory);
+      color: var(--ink-light);
+      border: 1px solid var(--line-strong);
+      cursor: pointer;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background: var(--parchment);
+      border-color: var(--sage);
+    }
+
+    .pagination button.active {
+      background: var(--forest);
+      color: #fff;
+      border-color: var(--forest);
+    }
+
+    .pagination button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .pagination .page-info {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 0 6px;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <!-- ── Header ── -->
+    <header class="hero">
+      <div class="hero-left">
+        <div class="hero-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+          </svg>
+        </div>
+        <div>
+          <h1>{{title}}</h1>
+          <div class="hero-meta">
+            <span>{{generated_at}}</span>
+            <span class="hero-tag">{{run_id}}</span>
+            <span class="hero-tag" data-tip="输入哈希" data-tip-pos="below">IN:{{input_hash_short}}</span>
+            <span class="hero-tag" data-tip="规则哈希" data-tip-pos="below">RL:{{rules_hash_short}}</span>
+          </div>
+        </div>
+      </div>
+      <div class="stats-bar">
+        <span class="stat-chip total">
+          <span>总计</span>
+          <span class="stat-num" id="totalCount">{{total_issues}}</span>
+        </span>
+        <span class="stat-chip error">
+          <span>错误</span>
+          <span class="stat-num" id="errorCount">0</span>
+        </span>
+        <span class="stat-chip warn">
+          <span>警告</span>
+          <span class="stat-num" id="warnCount">0</span>
+        </span>
+        <span class="stat-chip info">
+          <span>信息</span>
+          <span class="stat-num" id="infoCount">0</span>
+        </span>
+      </div>
+    </header>
+
+    <!-- ── Body: sidebar + main ── -->
+    <section class="workspace">
+      <aside class="sidebar">
+        <!-- Filters -->
+        <section class="block">
+          <div class="block-head">
+            <h2>筛选条件</h2>
+          </div>
+          <div class="block-body">
+            <div class="field">
+              <label>规则</label>
+              <div class="select-wrap">
+                <select id="ruleFilter"><option value="">全部规则</option></select>
+              </div>
+            </div>
+            <div class="field">
+              <label>严重级别</label>
+              <div class="select-wrap">
+                <select id="severityFilter">
+                  <option value="all">全部</option>
+                  <option value="error">错误</option>
+                  <option value="warn">警告</option>
+                  <option value="info">信息</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>查看方式</label>
+              <div class="select-wrap">
+                <select id="viewMode">
+                  <option value="flat">明细表</option>
+                  <option value="grouped">按类别分组</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>关键词搜索</label>
+              <input id="keywordFilter" placeholder="回车搜索..." />
+            </div>
+            <div class="field">
+              <label>排序方式</label>
+              <div class="select-wrap">
+                <select id="sortBy">
+                  <option value="severity">按级别</option>
+                  <option value="rule">按规则</option>
+                  <option value="location">按位置</option>
+                </select>
+              </div>
+            </div>
+            <div class="btns">
+              <button type="button" class="primary" onclick="applyFilter()">应用</button>
+              <button type="button" class="ghost" onclick="resetFilter()">重置</button>
+              <button type="button" class="secondary" onclick="downloadCsv()">导出CSV</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Quick chips -->
+        <section class="block">
+          <div class="block-head">
+            <h2>快速筛选</h2>
+          </div>
+          <div class="block-body">
+            <div class="chips" id="quickChips">
+              <span class="chip all" data-sev="all">全部</span>
+              <span class="chip error" data-sev="error">错误</span>
+              <span class="chip warn" data-sev="warn">警告</span>
+              <span class="chip info" data-sev="info">信息</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Input files (collapsible) -->
+        <section class="block collapsed" id="filesBlock">
+          <div class="block-head collapsible" onclick="toggleBlock('filesBlock')">
+            <h2>检查文件</h2>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="block-body">
+            <ul id="inputFilesList" class="list"></ul>
+          </div>
+        </section>
+
+        <!-- Rule catalog (collapsible) -->
+        <section class="block collapsed" id="rulesBlock">
+          <div class="block-head collapsible" onclick="toggleBlock('rulesBlock')">
+            <h2>规则目录</h2>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="block-body">
+            <ul id="ruleCatalogList" class="list"></ul>
+          </div>
+        </section>
+
+        <!-- Snapshot -->
+        <section class="block collapsed" id="snapshotBlock">
+          <div class="block-head collapsible" onclick="toggleBlock('snapshotBlock')">
+            <h2>统计快照</h2>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="block-body">
+            <pre id="snapshotPanel">{{severity_json}}</pre>
+          </div>
+        </section>
+      </aside>
+
+      <section class="main">
+        <div class="head">
+          <h2>问题明细</h2>
+          <div id="liveRegion" class="live" aria-live="polite"></div>
+        </div>
+
+        <div id="groupPills" class="pills"></div>
+
+        <div id="tableWrap" class="table-wrap">
+          <table id="issueTable">
+            <thead>
+              <tr>
+                <th style="width:60px">级别</th>
+                <th style="width:22%">规则</th>
+                <th style="width:18%">位置</th>
+                <th>问题描述</th>
+                <th style="width:13%">期望值</th>
+                <th style="width:13%">实际值</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="emptyState" class="empty" hidden>
+            <div>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+              </svg>
+              <div>当前筛选条件下没有问题记录</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="paginationWrap" class="pagination" hidden></div>
+
+        <div id="groupWrap" class="group-wrap" hidden>
+          <div id="groupBoard"></div>
+          <div id="groupEmpty" class="empty" hidden>
+            <div>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+              </svg>
+              <div>当前筛选条件下没有可分组的问题记录</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script id="issuesJson" type="application/json">{{issues_json}}</script>
+  <script id="inputsJson" type="application/json">{{inputs_json}}</script>
+  <script id="ruleCatalogJson" type="application/json">{{rule_catalog_json}}</script>
+  <script>
+    /* ── Collapse toggle ── */
+    function toggleBlock(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle("collapsed");
+    }
+
+    /* ── Data parsing ── */
+    function parseJsonNode(id, fallback) {
+      const node = document.getElementById(id);
+      if (!node) return fallback;
+      try {
+        const parsed = JSON.parse(String(node.textContent || ""));
+        return parsed ?? fallback;
+      } catch {
+        return fallback;
+      }
+    }
+
+    const issues = (() => {
+      const parsed = parseJsonNode("issuesJson", []);
+      return Array.isArray(parsed) ? parsed : [];
+    })();
+    const inputFiles = (() => {
+      const parsed = parseJsonNode("inputsJson", []);
+      return Array.isArray(parsed) ? parsed : [];
+    })();
+    const ruleCatalog = (() => {
+      const parsed = parseJsonNode("ruleCatalogJson", []);
+      return Array.isArray(parsed) ? parsed : [];
+    })();
+
+    const rank = { error: 0, warn: 1, info: 2 };
+    const PAGE_SIZE = 50;
+    const state = {
+      rule: "",
+      severity: "all",
+      keyword: "",
+      sortBy: "severity",
+      viewMode: "flat",
+      page: 1,
+    };
+    let currentRows = issues.slice();
+
+    const esc = (v) => String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+    const sevKey = (v) => {
+      const x = String(v || "").toLowerCase();
+      if (x === "error" || x === "错误") return "error";
+      if (x === "warn" || x === "warning" || x === "警告") return "warn";
+      return "info";
+    };
+    const sevLabel = (v) => (sevKey(v) === "error" ? "错误" : sevKey(v) === "warn" ? "警告" : "信息");
+
+    function locationText(row) {
+      const file = row.file || "-";
+      const sheet = row.sheet || "-";
+      const rowNo = row.row || "-";
+      const col = row.column || "-";
+      return `${file} / ${sheet} / 行${rowNo} / 列${col}`;
+    }
+
+    function ruleOptionLabel(row) {
+      const title = String(row.rule_title || row.rule_id || "").trim();
+      const rid = String(row.rule_id || "").trim();
+      return title && rid && title !== rid ? `${title} [${rid}]` : rid || title || "未知规则";
+    }
+
+    function populateRuleDropdown() {
+      const select = document.getElementById("ruleFilter");
+      const map = new Map();
+      for (const row of issues) {
+        const rid = String(row.rule_id || "");
+        if (!rid) continue;
+        if (!map.has(rid)) {
+          map.set(rid, ruleOptionLabel(row));
+        }
+      }
+      const options = ['<option value="">全部规则</option>'];
+      Array.from(map.entries())
+        .sort((a, b) => a[1].localeCompare(b[1], "zh-CN"))
+        .forEach(([rid, label]) => {
+          options.push(`<option value="${esc(rid)}">${esc(label)}</option>`);
+        });
+      select.innerHTML = options.join("");
+      if (customSelects[select.id]) customSelects[select.id].refresh();
+    }
+
+    function renderInputFiles() {
+      const root = document.getElementById("inputFilesList");
+      if (!inputFiles.length) {
+        root.innerHTML = "<li>无输入文件信息</li>";
+        return;
+      }
+      root.innerHTML = inputFiles.map((f) => {
+        const sheets = Array.isArray(f.sheets) ? f.sheets : [];
+        const warns = Array.isArray(f.parse_warnings) ? f.parse_warnings : [];
+        const notes = Array.isArray(f.parse_notes) ? f.parse_notes : [];
+        const sheetText = sheets.length
+          ? sheets.map((s) => `${s.sheet || "-"}:约${s.row_count_estimate || 0}行`).join("；")
+          : "无工作表信息";
+        const extraText = [
+          warns.length ? `告警 ${warns.length} 条` : "",
+          notes.length ? `说明 ${notes.length} 条` : "",
+        ].filter(Boolean).join("；");
+        const detailText = warns.concat(notes).slice(0, 2).join("；");
+        return `
+          <li>
+            <div class="title">${esc(f.name || "-")}</div>
+            <div>${esc((f.extension || "").replace(".", "").toUpperCase())} · ${Number(f.size_bytes || 0)} B · ${Number(f.sheet_count || 0)} 表</div>
+            <div>${esc(sheetText)}</div>
+            ${extraText ? `<div>${esc(extraText)}</div>` : ""}
+            ${detailText ? `<div style="color:var(--muted);margin-top:2px">${esc(detailText)}</div>` : ""}
+          </li>
+        `;
+      }).join("");
+    }
+
+    function applyRuleFromCatalog(ruleId) {
+      state.rule = String(ruleId || "");
+      document.getElementById("ruleFilter").value = state.rule;
+      render();
+    }
+
+    function renderRuleCatalog() {
+      const root = document.getElementById("ruleCatalogList");
+      if (!ruleCatalog.length) {
+        root.innerHTML = "<li>无规则目录信息</li>";
+        return;
+      }
+      root.innerHTML = ruleCatalog.map((r) => `
+        <li class="rule-item" data-rule-id="${esc(r.rule_id || "")}">
+          <div class="title">${esc(r.rule_title || r.rule_id || "-")}</div>
+          <div>${esc((r.rule_group_zh || "规则组"))} · ${esc(r.rule_id || "-")}</div>
+          <div>${esc(r.rule_desc || "")}</div>
+        </li>
+      `).join("");
+    }
+
+    function sortRows(rows) {
+      const out = rows.slice();
+      if (state.sortBy === "rule") {
+        out.sort((a, b) => ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN"));
+      } else if (state.sortBy === "location") {
+        out.sort((a, b) => {
+          const fa = String(a.file || "");
+          const fb = String(b.file || "");
+          if (fa !== fb) return fa.localeCompare(fb, "zh-CN");
+          const sa = String(a.sheet || "");
+          const sb = String(b.sheet || "");
+          if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
+          return Number(a.row || 0) - Number(b.row || 0);
+        });
+      } else {
+        out.sort((a, b) => {
+          const ra = rank[sevKey(a.severity)] ?? 9;
+          const rb = rank[sevKey(b.severity)] ?? 9;
+          if (ra !== rb) return ra - rb;
+          return ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN");
+        });
+      }
+      return out;
+    }
+
+    function filterRows() {
+      const keyword = state.keyword.toLowerCase();
+      const rows = issues.filter((row) => {
+        const rid = String(row.rule_id || "");
+        if (state.rule && rid !== state.rule) return false;
+        if (state.severity !== "all" && sevKey(row.severity) !== state.severity) return false;
+        if (keyword) {
+          const bag = [
+            row.rule_id, row.rule_title, row.rule_desc,
+            row.message_zh, row.message, row.file, row.sheet, row.column, row.expected, row.actual
+          ].map((x) => String(x || "").toLowerCase()).join("\n");
+          if (!bag.includes(keyword)) return false;
+        }
+        return true;
+      });
+      return sortRows(rows);
+    }
+
+    function buildGroups(rows) {
+      const map = new Map();
+      for (const row of rows) {
+        const key = [
+          row.category_zh || row.category || "未知",
+          row.file || "-",
+          row.sheet || "-",
+          row.rule_id || "UNKNOWN",
+          sevKey(row.severity),
+        ].join("|||");
+        if (!map.has(key)) {
+          map.set(key, {
+            category: String(row.category_zh || row.category || "未知"),
+            file: String(row.file || "-"),
+            sheet: String(row.sheet || "-"),
+            ruleId: String(row.rule_id || "UNKNOWN"),
+            ruleTitle: String(row.rule_title || row.rule_id || "未知规则"),
+            severity: sevKey(row.severity),
+            severityLabel: String(row.severity_zh || sevLabel(row.severity)),
+            rows: [],
+          });
+        }
+        map.get(key).rows.push(row);
+      }
+      const groups = Array.from(map.values());
+      groups.sort((a, b) => {
+        const ra = rank[a.severity] ?? 9;
+        const rb = rank[b.severity] ?? 9;
+        if (ra !== rb) return ra - rb;
+        if (a.category !== b.category) return a.category.localeCompare(b.category, "zh-CN");
+        if (a.file !== b.file) return a.file.localeCompare(b.file, "zh-CN");
+        if (a.sheet !== b.sheet) return a.sheet.localeCompare(b.sheet, "zh-CN");
+        return a.ruleTitle.localeCompare(b.ruleTitle, "zh-CN");
+      });
+      return groups;
+    }
+
+    function renderStats(rows) {
+      const count = { error: 0, warn: 0, info: 0 };
+      for (const row of rows) count[sevKey(row.severity)] += 1;
+      document.getElementById("totalCount").textContent = String(rows.length);
+      document.getElementById("errorCount").textContent = String(count.error);
+      document.getElementById("warnCount").textContent = String(count.warn);
+      document.getElementById("infoCount").textContent = String(count.info);
+
+      const snapshot = {
+        错误: count.error,
+        警告: count.warn,
+        信息: count.info,
+        分组数: buildGroups(rows).length,
+      };
+      document.getElementById("snapshotPanel").textContent = JSON.stringify(snapshot, null, 2);
+    }
+
+    function renderPills(rows) {
+      const byCat = new Map();
+      for (const row of rows) {
+        const cat = String(row.category_zh || row.category || "未知");
+        byCat.set(cat, (byCat.get(cat) || 0) + 1);
+      }
+      const html = Array.from(byCat.entries()).map(([cat, n]) => `<span class="pill">${esc(cat)}：${n}</span>`).join("");
+      document.getElementById("groupPills").innerHTML = html;
+    }
+
+    function renderPagination(totalRows) {
+      const wrap = document.getElementById("paginationWrap");
+      const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+      if (totalRows <= PAGE_SIZE || state.viewMode === "grouped") {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      if (state.page > totalPages) state.page = totalPages;
+
+      let html = `<button onclick="goPage(${state.page - 1})" ${state.page <= 1 ? 'disabled' : ''}>‹</button>`;
+
+      const maxVisible = 7;
+      let startPage = Math.max(1, state.page - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      if (endPage - startPage < maxVisible - 1) {
+        startPage = Math.max(1, endPage - maxVisible + 1);
+      }
+
+      if (startPage > 1) {
+        html += `<button onclick="goPage(1)">1</button>`;
+        if (startPage > 2) html += `<span class="page-info">…</span>`;
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="${i === state.page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += `<span class="page-info">…</span>`;
+        html += `<button onclick="goPage(${totalPages})">${totalPages}</button>`;
+      }
+
+      html += `<button onclick="goPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>›</button>`;
+      html += `<span class="page-info">${state.page}/${totalPages} 页</span>`;
+
+      wrap.innerHTML = html;
+    }
+
+    function goPage(p) {
+      const totalPages = Math.max(1, Math.ceil(currentRows.length / PAGE_SIZE));
+      state.page = Math.max(1, Math.min(p, totalPages));
+      renderFlat(currentRows);
+      renderPagination(currentRows.length);
+      document.getElementById("tableWrap").scrollTop = 0;
+    }
+
+    function renderFlat(rows) {
+      const tbody = document.querySelector("#issueTable tbody");
+      const empty = document.getElementById("emptyState");
+      document.getElementById("groupEmpty").hidden = true;
+      if (!rows.length) {
+        tbody.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+
+      const start = (state.page - 1) * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+      tbody.innerHTML = pageRows.map((row) => {
+        const ruleTitle = esc(row.rule_title || row.rule_id || "-");
+        const ruleIdLine = esc(row.rule_id || "-") + " · " + esc(row.rule_group_zh || "");
+        const locText = esc(locationText(row));
+        const msgText = esc(row.message_zh || row.message || "");
+        const expectText = esc(row.expected || "-");
+        const actualText = esc(row.actual || "-");
+        return `
+        <tr>
+          <td><span class="sev ${sevKey(row.severity)}">${esc(row.severity_zh || sevLabel(row.severity))}</span></td>
+          <td>
+            <div class="rule-main" data-tip="${ruleTitle}">${ruleTitle}</div>
+            <div class="rule-sub" data-tip="${ruleIdLine}">${ruleIdLine}</div>
+          </td>
+          <td><span class="loc" data-tip="${locText}">${locText}</span></td>
+          <td><div class="ellipsis" data-tip="${msgText}">${msgText}</div></td>
+          <td><div class="ellipsis" data-tip="${expectText}">${expectText}</div></td>
+          <td><div class="ellipsis" data-tip="${actualText}">${actualText}</div></td>
+        </tr>
+      `;}).join("");
+    }
+
+    function renderGrouped(rows) {
+      const board = document.getElementById("groupBoard");
+      const empty = document.getElementById("groupEmpty");
+      document.getElementById("emptyState").hidden = true;
+      const groups = buildGroups(rows);
+      if (!groups.length) {
+        board.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      board.innerHTML = groups.map((g) => {
+        const details = g.rows.slice(0, 20).map((r) => `
+          <li class="g-item">
+            <div class="g-loc">行${r.row || "-"} / 列${r.column || "-"}</div>
+            <div class="g-msg ellipsis" data-tip="${esc(r.message_zh || r.message || "")}">${esc(r.message_zh || r.message || "")}</div>
+          </li>
+        `).join("");
+        const catText = esc(g.category);
+        const locLabel = esc(g.file) + " / " + esc(g.sheet);
+        const ruleTitleText = esc(g.ruleTitle);
+        return `
+          <section class="g-card">
+            <header class="g-head">
+              <div class="g-meta">
+                <span class="sev ${g.severity}">${esc(g.severityLabel)}</span>
+                <span class="g-badge" data-tip="${catText}">${catText}</span>
+                <span class="g-badge" data-tip="${locLabel}">${locLabel}</span>
+                <span class="g-badge" data-tip="${ruleTitleText}">${ruleTitleText}</span>
+              </div>
+              <span class="g-badge">${g.rows.length} 条</span>
+            </header>
+            <ul class="g-list">${details}</ul>
+          </section>
+        `;
+      }).join("");
+    }
+
+    /* ── Global Tooltip (JS-based, escapes overflow containers) ── */
+    const gTip = document.createElement('div');
+    gTip.className = 'g-tooltip';
+    document.body.appendChild(gTip);
+    let tipTarget = null;
+
+    document.addEventListener('mouseover', (e) => {
+      const el = e.target.closest('[data-tip]');
+      if (!el || el === tipTarget) return;
+      const text = (el.getAttribute('data-tip') || '').trim();
+      if (!text) return;
+      const visible = el.textContent.trim();
+      const isTruncated = el.scrollWidth > el.clientWidth + 1;
+      const isExplanatory = text !== visible;
+      if (!isTruncated && !isExplanatory) { gTip.classList.remove('visible'); tipTarget = null; return; }
+      gTip.textContent = text;
+      gTip.style.left = '-9999px';
+      gTip.style.top = '0';
+      gTip.classList.add('visible');
+      requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        const t = gTip.getBoundingClientRect();
+        let top = r.top - t.height - 6;
+        let left = r.left;
+        if (top < 4) top = r.bottom + 6;
+        if (left + t.width > window.innerWidth - 4) left = window.innerWidth - t.width - 4;
+        if (left < 4) left = 4;
+        gTip.style.top = top + 'px';
+        gTip.style.left = left + 'px';
+      });
+      tipTarget = el;
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      const el = e.target.closest('[data-tip]');
+      if (el) { gTip.classList.remove('visible'); tipTarget = null; }
+    });
+
+    function updateChips() {
+      document.querySelectorAll("#quickChips .chip").forEach((chip) => {
+        chip.classList.toggle("active", chip.getAttribute("data-sev") === state.severity);
+      });
+    }
+
+    function render() {
+      syncAllCustomSelects();
+      state.page = 1;
+      currentRows = filterRows();
+      renderStats(currentRows);
+      renderPills(currentRows);
+      document.getElementById("liveRegion").textContent = `共 ${currentRows.length} 条`;
+      document.getElementById("emptyState").hidden = true;
+      document.getElementById("groupEmpty").hidden = true;
+
+      const tableWrap = document.getElementById("tableWrap");
+      const groupWrap = document.getElementById("groupWrap");
+      const paginationWrap = document.getElementById("paginationWrap");
+      if (state.viewMode === "grouped") {
+        tableWrap.hidden = true;
+        paginationWrap.hidden = true;
+        groupWrap.hidden = false;
+        renderGrouped(currentRows);
+      } else {
+        groupWrap.hidden = true;
+        tableWrap.hidden = false;
+        renderFlat(currentRows);
+        renderPagination(currentRows.length);
+      }
+    }
+
+    function applyFilter() {
+      state.rule = document.getElementById("ruleFilter").value;
+      state.severity = document.getElementById("severityFilter").value;
+      state.keyword = document.getElementById("keywordFilter").value.trim();
+      state.sortBy = document.getElementById("sortBy").value;
+      state.viewMode = document.getElementById("viewMode").value;
+      render();
+      updateChips();
+    }
+
+    function resetFilter() {
+      state.rule = "";
+      state.severity = "all";
+      state.keyword = "";
+      state.sortBy = "severity";
+      state.viewMode = "flat";
+      document.getElementById("ruleFilter").value = "";
+      document.getElementById("severityFilter").value = "all";
+      document.getElementById("keywordFilter").value = "";
+      document.getElementById("sortBy").value = "severity";
+      document.getElementById("viewMode").value = "flat";
+      render();
+      updateChips();
+    }
+
+    function downloadCsv() {
+      const head = [
+        "问题ID","严重级别","严重级别代码","问题类别","问题类别代码","规则组","规则组代码","规则ID","规则名称","规则说明",
+        "问题描述","问题描述原文","文件","工作表","行","列","单元格","期望值","实际值"
+      ];
+      const keys = [
+        "issue_id","severity_zh","severity","category_zh","category","rule_group_zh","rule_group","rule_id","rule_title","rule_desc",
+        "message_zh","message","file","sheet","row","column","cell","expected","actual"
+      ];
+      const lines = [head.join(",")];
+      for (const row of currentRows) {
+        const values = keys.map((k) => `"${String(row[k] ?? "").replace(/"/g, '""')}"`);
+        lines.push(values.join(","));
+      }
+      const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "校验问题_当前筛选_中文.csv";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    /* ── Custom Select Component ── */
+    const customSelects = {};
+
+    class CustomSelect {
+      constructor(selectEl) {
+        this.select = selectEl;
+        this.wrap = selectEl.closest('.select-wrap');
+        if (!this.wrap) return;
+
+        this.trigger = document.createElement('div');
+        this.trigger.className = 'cs-trigger';
+
+        this.optionsEl = document.createElement('div');
+        this.optionsEl.className = 'cs-options';
+
+        this.wrap.appendChild(this.trigger);
+        this.wrap.appendChild(this.optionsEl);
+
+        this._build();
+        this._sync();
+
+        this.trigger.addEventListener('click', () => {
+          document.querySelectorAll('.select-wrap.cs-open').forEach(w => {
+            if (w !== this.wrap) w.classList.remove('cs-open');
+          });
+          this.wrap.classList.toggle('cs-open');
+          if (this.wrap.classList.contains('cs-open')) this._position();
+        });
+
+        this.optionsEl.addEventListener('click', (e) => {
+          const opt = e.target.closest('.cs-option');
+          if (!opt) return;
+          this.select.value = opt.dataset.value;
+          this._build();
+          this._sync();
+          this.wrap.classList.remove('cs-open');
+          this.select.dispatchEvent(new Event('change'));
+        });
+      }
+
+      _build() {
+        this.optionsEl.innerHTML = Array.from(this.select.options).map(o =>
+          `<div class="cs-option${o.value === this.select.value ? ' cs-selected' : ''}" data-value="${esc(o.value)}" data-tip="${esc(o.textContent)}">${esc(o.textContent)}</div>`
+        ).join('');
+      }
+
+      _sync() {
+        const sel = this.select.options[this.select.selectedIndex];
+        const text = sel ? sel.textContent : '';
+        this.trigger.textContent = text;
+        this.trigger.setAttribute('data-tip', text);
+      }
+
+      refresh() { this._build(); this._sync(); }
+
+      _position() {
+        const r = this.trigger.getBoundingClientRect();
+        const o = this.optionsEl;
+        o.style.left = r.left + 'px';
+        o.style.width = r.width + 'px';
+        o.style.top = r.bottom + 'px';
+        requestAnimationFrame(() => {
+          const ob = o.getBoundingClientRect();
+          if (ob.bottom > window.innerHeight - 4) {
+            o.style.top = (r.top - ob.height) + 'px';
+            o.style.borderRadius = '6px 6px 0 0';
+          } else {
+            o.style.borderRadius = '0 0 6px 6px';
+          }
+        });
+      }
+    }
+
+    function initCustomSelects() {
+      document.querySelectorAll('.select-wrap select').forEach(sel => {
+        if (sel.id) customSelects[sel.id] = new CustomSelect(sel);
+      });
+      document.addEventListener('click', (e) => {
+        document.querySelectorAll('.select-wrap.cs-open').forEach(w => {
+          if (!w.contains(e.target)) w.classList.remove('cs-open');
+        });
+      });
+    }
+
+    function syncAllCustomSelects() {
+      Object.values(customSelects).forEach(cs => cs.refresh());
+    }
+
+    /* ── Event listeners ── */
+    document.getElementById("ruleFilter").addEventListener("change", applyFilter);
+    document.getElementById("severityFilter").addEventListener("change", applyFilter);
+    document.getElementById("viewMode").addEventListener("change", applyFilter);
+    document.getElementById("sortBy").addEventListener("change", applyFilter);
+    document.getElementById("ruleCatalogList").addEventListener("click", (e) => {
+      const target = e.target.closest(".rule-item[data-rule-id]");
+      if (!target) return;
+      const rid = target.getAttribute("data-rule-id") || "";
+      document.getElementById("ruleFilter").value = rid;
+      state.rule = rid;
+      render();
+    });
+    document.getElementById("quickChips").addEventListener("click", (e) => {
+      const target = e.target.closest(".chip[data-sev]");
+      if (!target) return;
+      state.severity = target.getAttribute("data-sev") || "all";
+      document.getElementById("severityFilter").value = state.severity;
+      render();
+      updateChips();
+    });
+    document.getElementById("keywordFilter").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") applyFilter();
+    });
+
+    /* ── Init ── */
+    populateRuleDropdown();
+    initCustomSelects();
+    renderInputFiles();
+    renderRuleCatalog();
+    resetFilter();
+
+  </script>
+</body>
+</html>
