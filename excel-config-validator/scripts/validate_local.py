@@ -160,6 +160,35 @@ def validate_schema_rules(
             )
 
 
+def _enrich_issues_with_file_identity(
+    issues: list[dict[str, Any]],
+    dataset_sheet_lookup: dict[str, dict[str, Any]],
+) -> None:
+    """为 issues 补充 file_path 和 file_sha256，基于 dataset_sheet_lookup 反查。"""
+    # 构建 (file_name, sheet_name) → (path, sha256) 映射
+    identity_map: dict[tuple[str, str], tuple[str, str]] = {}
+    for entry in dataset_sheet_lookup.values():
+        if not isinstance(entry, dict):
+            continue
+        fname = str(entry.get("file", ""))
+        sname = str(entry.get("sheet", ""))
+        fpath = str(entry.get("path", ""))
+        fsha = str(entry.get("sha256", ""))
+        if fname:
+            identity_map[(fname, sname)] = (fpath, fsha)
+
+    for issue in issues:
+        if issue.get("file_path") or issue.get("file_sha256"):
+            continue
+        key = (str(issue.get("file", "")), str(issue.get("sheet", "")))
+        if key in identity_map:
+            fpath, fsha = identity_map[key]
+            if fpath:
+                issue["file_path"] = fpath
+            if fsha:
+                issue["file_sha256"] = fsha
+
+
 def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> Path:
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
     rules = compiled.get("rules", {})
@@ -173,6 +202,9 @@ def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> P
     validate_range_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_row_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_aggregate_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
+
+    # 为 issues 补充文件完整路径和 SHA-256 指纹
+    _enrich_issues_with_file_identity(issues, dataset_sheet_lookup)
 
     issues.sort(
         key=lambda x: (

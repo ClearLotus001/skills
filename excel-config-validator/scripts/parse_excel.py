@@ -52,8 +52,10 @@ def discover_input_files(inputs: Path) -> list[Path]:
 
 
 def json_friendly(value: Any) -> Any:
-    if isinstance(value, (datetime, date, time)):
+    if isinstance(value, datetime):
         return value.isoformat(sep=" ")
+    if isinstance(value, (date, time)):
+        return value.isoformat()
     return value
 
 
@@ -322,7 +324,16 @@ def parse_xlsx_like(path: Path, data_only: bool) -> tuple[list[dict[str, Any]], 
     unknown_extension_hits = 0
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        wb = load_workbook(path, read_only=True, data_only=data_only)
+        try:
+            wb = load_workbook(path, read_only=True, data_only=data_only)
+        except Exception as e:  # noqa: BLE001
+            # read_only 模式解析样式失败时回退到普通模式
+            parse_notes.append(f"read_only 模式打开失败（{e}），回退到普通模式")
+            try:
+                wb = load_workbook(path, read_only=False, data_only=data_only)
+            except Exception as e2:  # noqa: BLE001
+                parse_warnings.append(f"openpyxl 无法打开文件：{e2}")
+                return sheets, parse_warnings, parse_notes
         try:
             for sheet_name in wb.sheetnames:
                 ws = wb[sheet_name]

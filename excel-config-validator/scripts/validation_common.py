@@ -130,7 +130,74 @@ def canonical_key(value: Any) -> str:
     return text
 
 
-def find_dataset_sheet(manifest: dict[str, Any], ds_cfg: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
+def _build_entry(file_item: dict[str, Any], sheet: dict[str, Any]) -> dict[str, Any]:
+    """从 manifest 文件条目和工作表条目构建统一的 entry 字典。"""
+    sheet_rows = sheet.get("rows", [])
+    sheet_rows_file = str(sheet.get("rows_file", "")).strip()
+    return {
+        "file": str(file_item.get("name", "")),
+        "path": str(file_item.get("path", "")),
+        "sha256": str(file_item.get("sha256", "")),
+        "sheet": str(sheet.get("sheet", "")),
+        "headers": sheet.get("headers", []),
+        "rows": sheet_rows if isinstance(sheet_rows, list) else [],
+        "rows_file": sheet_rows_file,
+        "row_count_estimate": int(sheet.get("row_count_estimate", 0) or 0),
+    }
+
+
+def _disambiguate_candidates(
+    candidates: list[dict[str, Any]],
+    ds_cfg: dict[str, Any],
+    expected_sheet: str,
+) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+    """从候选文件中收集所有匹配的 (file_item, sheet_item) 对。
+
+    返回列表按行数降序排列，方便取最完整的文件。
+    """
+    expected_sha256 = str(ds_cfg.get("sha256", "")).strip().lower()
+    expected_path = str(ds_cfg.get("file_path", "")).strip()
+    expected_path_norm = normalize_path_text(expected_path) if expected_path else ""
+
+    hits: list[tuple[dict[str, Any], dict[str, Any], int]] = []
+    for file_item in candidates:
+        sheets = file_item.get("sheets", [])
+        if not isinstance(sheets, list):
+            continue
+        target_sheets = sheets
+        if expected_sheet:
+            target_sheets = [s for s in sheets if str(s.get("sheet", "")) == expected_sheet]
+        elif sheets:
+            target_sheets = [sheets[0]]
+
+        for sheet_item in target_sheets:
+            row_est = int(sheet_item.get("row_count_estimate", 0) or 0)
+            priority = 0
+            if expected_sha256 and str(file_item.get("sha256", "")).lower() == expected_sha256:
+                priority = 2
+            elif expected_path_norm:
+                file_path_norm = normalize_path_text(str(file_item.get("path", "")))
+                if file_path_norm == expected_path_norm or file_path_norm.endswith(f"/{expected_path_norm}"):
+                    priority = 1
+            hits.append((file_item, sheet_item, priority * 10_000_000 + row_est))
+
+    hits.sort(key=lambda x: -x[2])
+    return [(fi, si) for fi, si, __ in hits]
+
+
+def find_dataset_sheet(
+    manifest: dict[str, Any],
+    ds_cfg: dict[str, Any],
+) -> tuple[dict[str, Any] | None, str]:
+    """在 manifest 中查找与 dataset 配置匹配的文件/工作表。
+
+    消歧策略（按优先级）:
+      1. ds_cfg 中指定 sha256 → 精确匹配文件哈希
+      2. ds_cfg 中指定 file_path → 精确匹配完整路径
+      3. 同名多文件 → 选择行数最多的（最完整的版本）
+
+    返回的 entry 中包含 sha256 和完整路径，供下游 issue / 报告引用。
+    """
     expected_file = str(ds_cfg.get("file", "")).strip()
     file_pattern = str(ds_cfg.get("file_pattern", "")).strip()
     expected_sheet = str(ds_cfg.get("sheet", "")).strip()
@@ -142,44 +209,29 @@ def find_dataset_sheet(manifest: dict[str, Any], ds_cfg: dict[str, Any]) -> tupl
     if not candidates:
         candidates = files
 
-    if expected_sheet:
-        for file_item in candidates:
-            for sheet in file_item.get("sheets", []):
-                sheet_name = str(sheet.get("sheet", ""))
-                if sheet_name == expected_sheet:
-                    sheet_rows = sheet.get("rows", [])
-                    sheet_rows_file = str(sheet.get("rows_file", "")).strip()
-                    return (
-                        {
-                            "file": str(file_item.get("name", "")),
-                            "path": str(file_item.get("path", "")),
-                            "sheet": sheet_name,
-                            "headers": sheet.get("headers", []),
-                            "rows": sheet_rows if isinstance(sheet_rows, list) else [],
-                            "rows_file": sheet_rows_file,
-                        },
-                        "ok",
-                    )
+    pairs = _disambiguate_candidates(candidates, ds_cfg, expected_sheet)
+    if not pairs:
         return None, "sheet_missing"
 
-    for file_item in candidates:
-        sheets = file_item.get("sheets", [])
-        if sheets:
-            first_sheet = sheets[0]
-            first_rows = first_sheet.get("rows", [])
-            first_rows_file = str(first_sheet.get("rows_file", "")).strip()
-            return (
-                {
-                    "file": str(file_item.get("name", "")),
-                    "path": str(file_item.get("path", "")),
-                    "sheet": str(first_sheet.get("sheet", "")),
-                    "headers": first_sheet.get("headers", []),
-                    "rows": first_rows if isinstance(first_rows, list) else [],
-                    "rows_file": first_rows_file,
-                },
-                "ok",
-            )
-    return None, "sheet_missing"
+    best_file, best_sheet = pairs[0]
+
+    # 同名多文件时打印警告
+    if len(pairs) > 1:
+        chosen_path = str(best_file.get("path", ""))
+        chosen_sha = str(best_file.get("sha256", ""))[:12]
+        chosen_rows = int(best_sheet.get("row_count_estimate", 0) or 0)
+        print(
+            f"[同名文件消歧] 数据集匹配到 {len(pairs)} 个同名文件，"
+            f"已选择行数最多的版本：{chosen_path} "
+            f"(sha256={chosen_sha}…, {chosen_rows} 行)"
+        )
+        for fi, si in pairs[1:]:
+            alt_path = str(fi.get("path", ""))
+            alt_sha = str(fi.get("sha256", ""))[:12]
+            alt_rows = int(si.get("row_count_estimate", 0) or 0)
+            print(f"  跳过：{alt_path} (sha256={alt_sha}…, {alt_rows} 行)")
+
+    return _build_entry(best_file, best_sheet), "ok"
 
 
 def rows_from_entry(entry: dict[str, Any]) -> list[dict[str, Any]]:
@@ -222,9 +274,11 @@ def make_issue(
     column: str,
     expected: str,
     actual: str,
+    file_path: str = "",
+    file_sha256: str = "",
 ) -> dict[str, Any]:
     cat = category.lower().strip() or "local"
-    return {
+    result: dict[str, Any] = {
         "issue_id": stable_issue_id(rule_id, file_name, sheet, row, column, actual),
         "severity": severity,
         "severity_zh": severity_label_zh(severity),
@@ -240,6 +294,11 @@ def make_issue(
         "expected": expected,
         "actual": actual,
     }
+    if file_path:
+        result["file_path"] = file_path
+    if file_sha256:
+        result["file_sha256"] = file_sha256
+    return result
 
 
 def make_exception_issue(

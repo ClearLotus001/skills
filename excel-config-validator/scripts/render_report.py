@@ -199,6 +199,7 @@ def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict
 
     if group_key == "row_rules":
         ds = str(rule.get("dataset", ""))
+        col = str(rule.get("column", "")).strip()
         ds_loc = dataset_location_text(ds, ds_cfg)
         branches = rule.get("branches")
         if isinstance(branches, list) and branches:
@@ -207,10 +208,16 @@ def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict
             title = f"{ds_loc} 条件分支校验（{branch_count} 分支{'+ else' if has_else else ''}）"
             desc = str(rule.get("message", "")).strip() or f"{branch_count} 个条件分支"
         else:
-            when_expr = str(rule.get("when", "")).strip()
-            assert_expr = str(rule.get("assert", "")).strip()
-            title = f"{ds_loc} 行表达式校验"
-            desc = str(rule.get("description", "")).strip() or f"when={when_expr or 'True'}; assert={assert_expr}"
+            msg = str(rule.get("message", "")).strip()
+            if col:
+                title = f"{ds_loc}.{col} 行表达式校验"
+            else:
+                title = f"{ds_loc} 行表达式校验"
+            desc = msg or str(rule.get("description", "")).strip()
+            if not desc:
+                when_expr = str(rule.get("when", "")).strip()
+                assert_expr = str(rule.get("assert", "")).strip()
+                desc = f"when={when_expr or 'True'}; assert={assert_expr}"
         return title, desc
 
     if group_key == "relation_rules":
@@ -300,6 +307,7 @@ def summarize_input_files(manifest: dict[str, Any]) -> list[dict[str, Any]]:
             {
                 "name": str(file_item.get("name", "")),
                 "path": str(file_item.get("path", "")),
+                "sha256": str(file_item.get("sha256", "")),
                 "extension": str(file_item.get("extension", "")),
                 "size_bytes": int(file_item.get("size_bytes", 0) or 0),
                 "sheet_count": len(sheets_out),
@@ -380,6 +388,8 @@ def write_issues_csv(path: Path, issues: list[dict[str, Any]]) -> None:
         ("message_zh", "问题描述"),
         ("message", "问题描述原文"),
         ("file", "文件"),
+        ("file_path", "文件完整路径"),
+        ("file_sha256", "文件SHA256"),
         ("sheet", "工作表"),
         ("row", "行"),
         ("column", "列"),
@@ -530,6 +540,40 @@ def default_html_template() -> str:
 """
 
 
+def _enrich_issues_with_manifest_identity(
+    issues: list[dict[str, Any]],
+    manifest: dict[str, Any],
+) -> None:
+    """为缺少 file_path / file_sha256 的 issues 从 manifest 反查补充。
+
+    如果同名文件存在多个，则保留 issue 自带的已有值（由校验阶段填入）。
+    """
+    files = manifest.get("files", [])
+    if not isinstance(files, list):
+        return
+
+    # 构建 file_name → (path, sha256) 映射（同名取最后一个，即最大行数的）
+    name_to_identity: dict[str, tuple[str, str]] = {}
+    for fi in files:
+        if not isinstance(fi, dict):
+            continue
+        name = str(fi.get("name", ""))
+        if name:
+            name_to_identity[name] = (
+                str(fi.get("path", "")),
+                str(fi.get("sha256", "")),
+            )
+
+    for issue in issues:
+        file_name = str(issue.get("file", ""))
+        if not file_name:
+            continue
+        if not issue.get("file_path") and file_name in name_to_identity:
+            issue["file_path"] = name_to_identity[file_name][0]
+        if not issue.get("file_sha256") and file_name in name_to_identity:
+            issue["file_sha256"] = name_to_identity[file_name][1]
+
+
 def render_reports(
     out_dir: Path,
     manifest_path: Path,
@@ -549,6 +593,7 @@ def render_reports(
         issues.extend(load_issues(issue_file))
     issues = localize_issues(issues)
     issues = enrich_issues_with_rule_info(issues, rule_catalog_by_id)
+    _enrich_issues_with_manifest_identity(issues, manifest)
     issues.sort(key=lambda x: (severity_rank(str(x.get("severity", "info"))), str(x.get("rule_id", ""))))
 
     summary = build_summary(issues)
@@ -602,7 +647,9 @@ def render_reports(
     ) or "- 无"
     input_file_lines = "\n".join(
         (
-            f"- {x.get('name', '-')}: {x.get('sheet_count', 0)} 个工作表"
+            f"- {x.get('name', '-')}"
+            + (f" `sha256:{x.get('sha256', '')[:12]}…`" if x.get("sha256") else "")
+            + f": {x.get('sheet_count', 0)} 个工作表"
             + (
                 f"（{sheet_rows_text(x.get('sheets') or [])}）"
                 if isinstance(x.get("sheets"), list) and x.get("sheets")

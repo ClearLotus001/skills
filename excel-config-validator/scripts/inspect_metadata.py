@@ -10,25 +10,45 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 # 确保 scripts/ 目录在导入路径中
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 def inspect_xlsx(path: Path) -> dict:
+    import warnings
+
     from openpyxl import load_workbook
 
-    wb = load_workbook(str(path), read_only=True, data_only=True)
-    sheets = {}
-    for name in wb.sheetnames:
-        ws = wb[name]
-        headers = []
-        for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
-            headers = [str(h) if h is not None else "" for h in row]
-            break
-        sheets[name] = {"headers": headers}
-    wb.close()
-    return {"file": path.name, "type": "xlsx", "sheets": sheets}
+    notes: list[str] = []
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        try:
+            wb = load_workbook(str(path), read_only=True, data_only=True)
+        except Exception as e:  # noqa: BLE001
+            notes.append(f"read_only 模式打开失败（{e}），回退到普通模式")
+            try:
+                wb = load_workbook(str(path), read_only=False, data_only=True)
+            except Exception as e2:  # noqa: BLE001
+                return {"file": path.name, "type": "xlsx", "error": f"openpyxl 无法打开: {e2}"}
+
+    try:
+        sheets = {}
+        for name in wb.sheetnames:
+            ws = wb[name]
+            headers = []
+            for row in ws.iter_rows(min_row=1, max_row=1, values_only=True):
+                headers = [str(h) if h is not None else "" for h in row]
+                break
+            sheets[name] = {"headers": headers}
+    finally:
+        wb.close()
+
+    result: dict[str, Any] = {"file": path.name, "type": "xlsx", "sheets": sheets}
+    if notes:
+        result["notes"] = notes
+    return result
 
 
 def inspect_csv(path: Path) -> dict:

@@ -438,6 +438,8 @@ def append_value_check_issue(
     column: str,
     expected: str,
     actual: str,
+    file_path: str = "",
+    file_sha256: str = "",
 ) -> None:
     issues.append(
         make_issue(
@@ -451,8 +453,13 @@ def append_value_check_issue(
             column=column,
             expected=expected,
             actual=actual,
+            file_path=file_path,
+            file_sha256=file_sha256,
         )
     )
+
+    # 被 validate_local 和 validate_row_rules 等函数内部使用
+    # file_path / file_sha256 可由调用方从 entry 中提取并传入
 
 
 def validate_rule_on_rows(
@@ -1239,6 +1246,13 @@ def validate_row_rules(
                                 break
 
                             if not bool(a_result):
+                                rule_column = str(rule.get("column", "")).strip()
+                                actual_val = ""
+                                if rule_column:
+                                    raw_val = values.get(rule_column)
+                                    actual_val = value_text(raw_val).strip() if not is_empty(raw_val) else "空"
+                                else:
+                                    actual_val = "不满足"
                                 append_value_check_issue(
                                     issues=issues,
                                     rule_id=rule_id,
@@ -1247,9 +1261,9 @@ def validate_row_rules(
                                     file_name=file_name,
                                     sheet=sheet,
                                     row_num=row_num,
-                                    column=str(rule.get("column", "")),
-                                    expected="分支断言结果为 True",
-                                    actual="False",
+                                    column=rule_column,
+                                    expected=branch["message"],
+                                    actual=actual_val,
                                 )
                             break
 
@@ -1284,6 +1298,13 @@ def validate_row_rules(
                                 break
 
                             if not bool(e_result):
+                                rule_column = str(rule.get("column", "")).strip()
+                                actual_val = ""
+                                if rule_column:
+                                    raw_val = values.get(rule_column)
+                                    actual_val = value_text(raw_val).strip() if not is_empty(raw_val) else "空"
+                                else:
+                                    actual_val = "不满足"
                                 append_value_check_issue(
                                     issues=issues,
                                     rule_id=rule_id,
@@ -1292,9 +1313,9 @@ def validate_row_rules(
                                     file_name=file_name,
                                     sheet=sheet,
                                     row_num=row_num,
-                                    column=str(rule.get("column", "")),
-                                    expected="else 断言结果为 True",
-                                    actual="False",
+                                    column=rule_column,
+                                    expected=else_message,
+                                    actual=actual_val,
                                 )
 
                         prev_row_values = values
@@ -1405,6 +1426,13 @@ def validate_row_rules(
                             break
 
                         if not bool(result):
+                            rule_column = str(rule.get("column", "")).strip()
+                            actual_val = ""
+                            if rule_column:
+                                raw_val = values.get(rule_column)
+                                actual_val = value_text(raw_val).strip() if not is_empty(raw_val) else "空"
+                            else:
+                                actual_val = "不满足"
                             append_value_check_issue(
                                 issues=issues,
                                 rule_id=rule_id,
@@ -1413,9 +1441,9 @@ def validate_row_rules(
                                 file_name=file_name,
                                 sheet=sheet,
                                 row_num=row_num,
-                                column=str(rule.get("column", "")),
-                                expected="表达式结果为 True",
-                                actual="False",
+                                column=rule_column,
+                                expected=message,
+                                actual=actual_val,
                             )
 
                         prev_row_values = values

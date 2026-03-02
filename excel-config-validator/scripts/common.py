@@ -8,10 +8,63 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
+from io import TextIOBase
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
+
+
+# ---------------------------------------------------------------------------
+# 日志重定向（解决 IDE 终端输出捕获问题）
+# ---------------------------------------------------------------------------
+
+class TeeLogger(TextIOBase):
+    """同时将输出写入原始流和日志文件，解决 IDE 终端无法捕获 stdout 的问题。"""
+
+    def __init__(self, log_path: Path, original_stream: Any) -> None:
+        super().__init__()
+        self._original = original_stream
+        self._log_file = log_path.open("a", encoding="utf-8", errors="replace")
+
+    def write(self, msg: str) -> int:
+        if msg:
+            try:
+                self._original.write(msg)
+            except Exception:  # noqa: BLE001
+                pass
+            self._log_file.write(msg)
+            self._log_file.flush()
+        return len(msg) if msg else 0
+
+    def flush(self) -> None:
+        try:
+            self._original.flush()
+        except Exception:  # noqa: BLE001
+            pass
+        self._log_file.flush()
+
+    def close(self) -> None:
+        self._log_file.close()
+
+    @property
+    def encoding(self) -> str:  # type: ignore[override]
+        return "utf-8"
+
+
+def setup_file_logging(log_path: str | Path) -> None:
+    """将 stdout 和 stderr 重定向到日志文件（同时保留原始终端输出）。
+
+    调用后所有 print() 输出都会自动写入日志文件，即使 IDE 终端
+    无法捕获 stdout，也可通过读取日志文件获取完整输出。
+    """
+    path = Path(log_path).resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # 清空已有日志
+    path.write_text("", encoding="utf-8")
+    sys.stdout = TeeLogger(path, sys.stdout)  # type: ignore[assignment]
+    sys.stderr = TeeLogger(path, sys.stderr)  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------

@@ -200,7 +200,7 @@
     .workspace {
       min-height: 0;
       display: grid;
-      grid-template-columns: 300px 1fr;
+      grid-template-columns: 320px 1fr;
       gap: 6px;
       border: 1px solid var(--line);
       border-radius: var(--radius-lg);
@@ -213,7 +213,8 @@
     .sidebar {
       min-height: 0;
       overflow-y: auto;
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sage-light) transparent;
       background:
         linear-gradient(180deg, rgba(245, 241, 230, 0.5) 0%, rgba(250, 248, 240, 0.3) 100%),
         var(--parchment);
@@ -223,7 +224,9 @@
       gap: 6px;
     }
 
-    .sidebar::-webkit-scrollbar { display: none; }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
 
     .block {
       border-radius: var(--radius);
@@ -386,9 +389,10 @@
     .cs-options {
       display: none;
       position: fixed;
-      max-height: 180px;
+      max-height: 200px;
       overflow-y: auto;
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sage-light) transparent;
       background: var(--ivory);
       border: 1px solid var(--sage);
       border-top: 1px solid var(--line);
@@ -397,7 +401,9 @@
       box-shadow: 0 6px 16px rgba(44, 62, 45, 0.12);
     }
 
-    .cs-options::-webkit-scrollbar { display: none; }
+    .cs-options::-webkit-scrollbar { width: 4px; }
+    .cs-options::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
+    .cs-options::-webkit-scrollbar-track { background: transparent; }
 
     .select-wrap.cs-open .cs-options {
       display: block;
@@ -548,10 +554,11 @@
       border-color: var(--info-border);
     }
 
-    .chip:hover { opacity: 0.85; }
+    .chip:hover { opacity: 0.85; transform: translateY(-1px); }
 
     .chip.active {
       box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.3) inset;
+      transform: translateY(-1px);
     }
 
     /* ── Sidebar lists ── */
@@ -560,39 +567,73 @@
       padding: 0;
       list-style: none;
       display: grid;
-      gap: 4px;
-      max-height: 180px;
+      gap: 6px;
+      max-height: 480px;
       overflow-y: auto;
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sage-light) transparent;
     }
 
-    .list::-webkit-scrollbar { display: none; }
+    .list::-webkit-scrollbar { width: 4px; }
+    .list::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
+    .list::-webkit-scrollbar-track { background: transparent; }
 
     .list li {
       border: 1px solid var(--line);
       border-radius: 6px;
       background: rgba(250, 248, 240, 0.6);
-      padding: 6px 8px;
+      padding: 8px 10px;
       font-size: 11px;
-      line-height: 1.45;
+      line-height: 1.55;
       color: var(--ink-light);
       transition: border-color 120ms, background 120ms;
+      word-break: break-word;
     }
 
     .list .title {
       color: var(--bark);
       font-weight: 700;
       font-size: 12px;
-      margin-bottom: 1px;
+      margin-bottom: 3px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    .list .rule-desc-text {
+      margin-top: 3px;
+      color: var(--ink-light);
+      font-size: 11px;
+      line-height: 1.5;
+      word-break: break-word;
     }
 
     .rule-item {
       cursor: pointer;
+      position: relative;
+      transition: border-color 120ms, background 120ms, padding-left 120ms;
     }
 
     .rule-item:hover {
       border-color: rgba(124, 154, 94, 0.4);
       background: rgba(139, 158, 107, 0.06);
+      padding-left: 14px;
+    }
+
+    .rule-item::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 0;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--sage), var(--forest));
+      transition: height 120ms ease;
+    }
+
+    .rule-item:hover::before {
+      height: 60%;
     }
 
     /* ── Snapshot pre ── */
@@ -604,14 +645,17 @@
       background: rgba(250, 248, 240, 0.6);
       max-height: 120px;
       overflow: auto;
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sage-light) transparent;
       font-family: var(--font-mono);
       font-size: 11px;
       color: var(--ink-light);
       line-height: 1.5;
     }
 
-    pre::-webkit-scrollbar { display: none; }
+    pre::-webkit-scrollbar { width: 4px; }
+    pre::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
+    pre::-webkit-scrollbar-track { background: transparent; }
 
     /* ── Main content area ── */
     .main {
@@ -628,7 +672,7 @@
       justify-content: space-between;
       gap: 8px;
       padding: 10px 16px;
-      background: var(--ivory);
+      background: linear-gradient(90deg, var(--ivory) 0%, rgba(245, 241, 230, 0.6) 100%);
       border-bottom: 1px solid var(--line);
     }
 
@@ -647,7 +691,7 @@
       width: 4px;
       height: 16px;
       border-radius: 2px;
-      background: linear-gradient(180deg, var(--sage), var(--forest));
+      background: linear-gradient(180deg, var(--forest), var(--sage));
     }
 
     .live {
@@ -678,6 +722,12 @@
       max-width: 200px;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: background 120ms, border-color 120ms;
+    }
+
+    .pill:hover {
+      background: var(--parchment);
+      border-color: rgba(124, 154, 94, 0.3);
     }
 
     /* ── Table area (the ONLY scrollable zone) ── */
@@ -685,13 +735,26 @@
       min-height: 0;
       position: relative;
       overflow: auto;
-      scrollbar-width: none;
+      scrollbar-width: thin;
+      scrollbar-color: var(--sage-light) transparent;
       background: var(--cream);
     }
 
     .table-wrap::-webkit-scrollbar,
     .group-wrap::-webkit-scrollbar {
-      display: none;
+      width: 6px;
+      height: 6px;
+    }
+
+    .table-wrap::-webkit-scrollbar-thumb,
+    .group-wrap::-webkit-scrollbar-thumb {
+      background: var(--sage-light);
+      border-radius: 4px;
+    }
+
+    .table-wrap::-webkit-scrollbar-track,
+    .group-wrap::-webkit-scrollbar-track {
+      background: transparent;
     }
 
     table {
@@ -699,7 +762,7 @@
       min-width: 860px;
       border-collapse: collapse;
       font-size: 12px;
-      table-layout: fixed;
+      table-layout: auto;
     }
 
     thead {
@@ -710,27 +773,62 @@
 
     th {
       text-align: left;
-      padding: 8px 12px;
-      background: var(--parchment);
-      border-bottom: 2px solid rgba(124, 154, 94, 0.25);
-      color: var(--bark);
+      padding: 10px 12px;
+      background: linear-gradient(180deg, var(--parchment) 0%, rgba(245, 241, 230, 0.85) 100%);
+      border-bottom: 2px solid rgba(124, 154, 94, 0.35);
+      color: var(--forest);
       font-family: var(--font-display);
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
       white-space: nowrap;
+      position: relative;
+      user-select: none;
+    }
+
+    th::after {
+      content: "";
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124, 154, 94, 0.2), transparent);
+    }
+
+    /* ── Column resize handle ── */
+    th .col-resizer {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      cursor: col-resize;
+      z-index: 3;
+      background: transparent;
+      transition: background 150ms;
+    }
+
+    th .col-resizer:hover,
+    th .col-resizer.resizing {
+      background: rgba(124, 154, 94, 0.4);
     }
 
     td {
-      padding: 7px 12px;
+      padding: 8px 12px;
       border-bottom: 1px solid var(--line);
       vertical-align: top;
       overflow: hidden;
       line-height: 1.5;
     }
 
+    /* 斑马纹 */
+    tbody tr:nth-child(even) td {
+      background: rgba(245, 241, 230, 0.35);
+    }
+
     tr:hover td {
-      background: rgba(139, 158, 107, 0.04);
+      background: rgba(139, 158, 107, 0.08);
     }
 
     .rule-main {
@@ -738,9 +836,7 @@
       color: var(--bark);
       font-size: 12px;
       line-height: 1.35;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-break: break-word;
     }
 
     .rule-sub {
@@ -748,9 +844,7 @@
       color: var(--muted);
       font-size: 11px;
       line-height: 1.4;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-break: break-word;
     }
 
     /* ── Severity badges ── */
@@ -758,10 +852,11 @@
       display: inline-flex;
       align-items: center;
       border-radius: 999px;
-      padding: 2px 8px;
+      padding: 2px 9px;
       font-size: 11px;
       font-weight: 700;
       white-space: nowrap;
+      letter-spacing: 0.02em;
     }
 
     .sev.error {
@@ -792,10 +887,15 @@
       border: 1px solid var(--line);
       background: rgba(245, 241, 230, 0.6);
       color: var(--ink-light);
-      line-height: 1.4;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      line-height: 1.5;
+      white-space: normal;
+      word-break: break-word;
+      transition: border-color 120ms, background 120ms;
+    }
+
+    .loc:hover {
+      border-color: rgba(124, 154, 94, 0.3);
+      background: rgba(245, 241, 230, 0.9);
     }
 
     /* ── Grouped view ── */
@@ -811,6 +911,12 @@
       border: 1px solid var(--line-strong);
       overflow: hidden;
       background: var(--ivory);
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 150ms ease;
+    }
+
+    .g-card:hover {
+      box-shadow: var(--shadow);
     }
 
     .g-head {
@@ -820,7 +926,7 @@
       gap: 6px;
       align-items: center;
       border-bottom: 1px solid var(--line);
-      background: var(--parchment);
+      background: linear-gradient(135deg, var(--parchment) 0%, rgba(245, 241, 230, 0.7) 100%);
       font-size: 12px;
       font-weight: 700;
     }
@@ -842,7 +948,7 @@
       background: var(--ivory);
       font-weight: 600;
       color: var(--ink-light);
-      max-width: 220px;
+      max-width: 360px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -855,28 +961,68 @@
       list-style: none;
     }
 
+    .g-desc {
+      padding: 6px 12px;
+      font-size: 12px;
+      color: var(--ink-light);
+      background: var(--moss-pale);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .g-list-header {
+      display: grid;
+      grid-template-columns: 180px 1fr 160px 100px;
+      gap: 8px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      background: rgba(245, 241, 230, 0.4);
+    }
+
     .g-item {
-      padding: 6px 10px;
+      padding: 5px 10px;
       border-top: 1px dashed var(--line);
       display: grid;
-      gap: 2px;
+      grid-template-columns: 180px 1fr 160px 100px;
+      gap: 8px;
+      align-items: center;
+      position: relative;
+      transition: background 120ms;
     }
 
     .g-item:first-child { border-top: none; }
 
-    .g-loc {
-      font-size: 11px;
-      color: var(--muted);
+    .g-item:hover {
+      background: rgba(139, 158, 107, 0.04);
+    }
+
+    .g-row-no {
+      font-size: 12px;
       font-family: var(--font-mono);
     }
 
-    .g-msg {
+    .g-msg-cell {
       font-size: 12px;
+      color: var(--ink);
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    .g-expect-cell {
+      font-size: 11px;
+      color: var(--ink-light);
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .g-actual {
+      font-size: 12px;
+      color: var(--error);
       font-weight: 600;
-      color: var(--bark);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-break: break-word;
+      text-align: right;
     }
 
     /* ── Empty state ── */
@@ -891,7 +1037,8 @@
       color: var(--muted);
       font-size: 13px;
       font-weight: 600;
-      background: rgba(250, 248, 240, 0.5);
+      background: linear-gradient(135deg, rgba(250, 248, 240, 0.6) 0%, rgba(245, 241, 230, 0.4) 100%);
+      border: 1px dashed var(--line);
     }
 
     .empty svg {
@@ -902,12 +1049,22 @@
 
     [hidden] { display: none !important; }
 
-    /* ── Ellipsis truncation ── */
+    /* ── Text display ── */
     .ellipsis {
       display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      word-break: break-word;
+      line-height: 1.5;
+    }
+
+    /* Column name highlight in message */
+    .col-highlight {
+      display: inline;
+      padding: 0 3px;
+      border-radius: 3px;
+      background: rgba(92, 64, 51, 0.10);
+      color: var(--bark);
+      font-weight: 700;
+      font-size: 12px;
     }
 
     /* ── Global Tooltip ── */
@@ -968,7 +1125,7 @@
       }
 
       .workspace {
-        grid-template-columns: 260px 1fr;
+        grid-template-columns: 280px 1fr;
       }
     }
 
@@ -1144,9 +1301,10 @@
     }
 
     .pagination button.active {
-      background: var(--forest);
+      background: linear-gradient(135deg, var(--forest), var(--forest-light));
       color: #fff;
       border-color: var(--forest);
+      box-shadow: 0 2px 6px rgba(45, 80, 22, 0.2);
     }
 
     .pagination button:disabled {
@@ -1284,8 +1442,8 @@
           </div>
         </section>
 
-        <!-- Rule catalog (collapsible) -->
-        <section class="block collapsed" id="rulesBlock">
+        <!-- Rule catalog (default expanded) -->
+        <section class="block" id="rulesBlock">
           <div class="block-head collapsible" onclick="toggleBlock('rulesBlock')">
             <h2>规则目录</h2>
             <span class="toggle-icon">▼</span>
@@ -1319,12 +1477,12 @@
           <table id="issueTable">
             <thead>
               <tr>
-                <th style="width:60px">级别</th>
-                <th style="width:22%">规则</th>
-                <th style="width:18%">位置</th>
-                <th>问题描述</th>
-                <th style="width:13%">期望值</th>
-                <th style="width:13%">实际值</th>
+                <th style="min-width:60px">级别<div class="col-resizer"></div></th>
+                <th style="min-width:120px">规则<div class="col-resizer"></div></th>
+                <th style="min-width:120px">位置<div class="col-resizer"></div></th>
+                <th style="min-width:160px">问题描述<div class="col-resizer"></div></th>
+                <th style="min-width:100px">期望值<div class="col-resizer"></div></th>
+                <th style="min-width:80px">实际值<div class="col-resizer"></div></th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -1352,6 +1510,8 @@
             </div>
           </div>
         </div>
+
+        <div id="groupPaginationWrap" class="pagination" hidden></div>
       </section>
     </section>
   </main>
@@ -1416,8 +1576,23 @@
       const file = row.file || "-";
       const sheet = row.sheet || "-";
       const rowNo = row.row || "-";
-      const col = row.column || "-";
-      return `${file} / ${sheet} / 行${rowNo} / 列${col}`;
+      const col = row.column || "";
+      if (col) {
+        return `${file} / ${sheet} / 行 ${rowNo} / 列「${col}」`;
+      }
+      return `${file} / ${sheet} / 行 ${rowNo}`;
+    }
+
+    function locationHtml(row) {
+      const file = esc(row.file || "-");
+      const sheet = esc(row.sheet || "-");
+      const rowNo = esc(String(row.row || "-"));
+      const col = esc(row.column || "");
+      let html = `<span style="color:var(--muted)">${file}</span> / <span style="color:var(--ink-light)">${sheet}</span> / <b style="color:var(--forest)">行 ${rowNo}</b>`;
+      if (col) {
+        html += ` / <b style="color:var(--bark)">列「${col}」</b>`;
+      }
+      return html;
     }
 
     function ruleOptionLabel(row) {
@@ -1488,13 +1663,18 @@
         root.innerHTML = "<li>无规则目录信息</li>";
         return;
       }
-      root.innerHTML = ruleCatalog.map((r) => `
+      root.innerHTML = ruleCatalog.map((r) => {
+        const title = r.rule_title || r.rule_id || "-";
+        const group = r.rule_group_zh || "规则组";
+        const rid = r.rule_id || "-";
+        const desc = r.rule_desc || "";
+        return `
         <li class="rule-item" data-rule-id="${esc(r.rule_id || "")}">
-          <div class="title">${esc(r.rule_title || r.rule_id || "-")}</div>
-          <div>${esc((r.rule_group_zh || "规则组"))} · ${esc(r.rule_id || "-")}</div>
-          <div>${esc(r.rule_desc || "")}</div>
+          <div class="title">${esc(title)}</div>
+          <div><span style="color:var(--sage);font-weight:600">${esc(group)}</span> · <span style="font-family:var(--font-mono)">${esc(rid)}</span></div>
+          ${desc ? `<div class="rule-desc-text">${esc(desc)}</div>` : ""}
         </li>
-      `).join("");
+      `;}).join("");
     }
 
     function sortRows(rows) {
@@ -1651,6 +1831,16 @@
       document.getElementById("tableWrap").scrollTop = 0;
     }
 
+    /* ── Highlight column names in message text ── */
+    function highlightColumnNames(text, colName) {
+      if (!text || !colName) return esc(text);
+      const escaped = esc(text);
+      const colEsc = esc(colName);
+      if (!colEsc) return escaped;
+      const re = new RegExp(colEsc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      return escaped.replace(re, `<span class="col-highlight">${colEsc}</span>`);
+    }
+
     function renderFlat(rows) {
       const tbody = document.querySelector("#issueTable tbody");
       const empty = document.getElementById("emptyState");
@@ -1669,7 +1859,11 @@
         const ruleTitle = esc(row.rule_title || row.rule_id || "-");
         const ruleIdLine = esc(row.rule_id || "-") + " · " + esc(row.rule_group_zh || "");
         const locText = esc(locationText(row));
-        const msgText = esc(row.message_zh || row.message || "");
+        const locHtml = locationHtml(row);
+        const rawMsg = row.message_zh || row.message || "";
+        const colName = row.column || "";
+        const msgHtml = highlightColumnNames(rawMsg, colName);
+        const msgText = esc(rawMsg);
         const expectText = esc(row.expected || "-");
         const actualText = esc(row.actual || "-");
         return `
@@ -1679,32 +1873,72 @@
             <div class="rule-main" data-tip="${ruleTitle}">${ruleTitle}</div>
             <div class="rule-sub" data-tip="${ruleIdLine}">${ruleIdLine}</div>
           </td>
-          <td><span class="loc" data-tip="${locText}">${locText}</span></td>
-          <td><div class="ellipsis" data-tip="${msgText}">${msgText}</div></td>
+          <td><span class="loc" data-tip="${locText}">${locHtml}</span></td>
+          <td><div class="ellipsis" data-tip="${msgText}">${msgHtml}</div></td>
           <td><div class="ellipsis" data-tip="${expectText}">${expectText}</div></td>
           <td><div class="ellipsis" data-tip="${actualText}">${actualText}</div></td>
         </tr>
       `;}).join("");
     }
 
+    const GROUP_PAGE_SIZE = 200;
+    let groupState = { page: 1, totalRows: 0, allGroups: [] };
+
     function renderGrouped(rows) {
       const board = document.getElementById("groupBoard");
       const empty = document.getElementById("groupEmpty");
       document.getElementById("emptyState").hidden = true;
       const groups = buildGroups(rows);
-      if (!groups.length) {
+      groupState.allGroups = groups;
+
+      const flatItems = [];
+      for (const g of groups) {
+        for (const r of g.rows) {
+          flatItems.push({ group: g, row: r });
+        }
+      }
+      groupState.totalRows = flatItems.length;
+
+      if (!flatItems.length) {
         board.innerHTML = "";
         empty.hidden = false;
+        document.getElementById("groupPaginationWrap").hidden = true;
         return;
       }
       empty.hidden = true;
-      board.innerHTML = groups.map((g) => {
-        const details = g.rows.slice(0, 20).map((r) => `
+
+      const totalPages = Math.max(1, Math.ceil(flatItems.length / GROUP_PAGE_SIZE));
+      if (groupState.page > totalPages) groupState.page = totalPages;
+      const start = (groupState.page - 1) * GROUP_PAGE_SIZE;
+      const pageItems = flatItems.slice(start, start + GROUP_PAGE_SIZE);
+
+      const orderedGroups = new Map();
+      for (const item of pageItems) {
+        const gKey = item.group.ruleId + "|||" + item.group.file + "|||" + item.group.sheet;
+        if (!orderedGroups.has(gKey)) {
+          orderedGroups.set(gKey, { group: item.group, rows: [] });
+        }
+        orderedGroups.get(gKey).rows.push(item.row);
+      }
+
+      board.innerHTML = Array.from(orderedGroups.values()).map(({ group: g, rows: gRows }) => {
+        const ruleDesc = esc(g.rows[0]?.rule_desc || g.rows[0]?.message_zh || g.rows[0]?.message || "");
+        const colName = g.rows[0]?.column || "";
+        const descHtml = ruleDesc ? highlightColumnNames(g.rows[0]?.rule_desc || g.rows[0]?.message_zh || g.rows[0]?.message || "", colName) : "";
+        const details = gRows.map((r) => {
+          const rowNo = r.row || "-";
+          const col = r.column ? `列「${esc(r.column)}」` : "";
+          const actualVal = esc(r.actual || "-");
+          const rawMsg = r.message_zh || r.message || "";
+          const msgHtml = highlightColumnNames(rawMsg, r.column || "");
+          return `
           <li class="g-item">
-            <div class="g-loc">行${r.row || "-"} / 列${r.column || "-"}</div>
-            <div class="g-msg ellipsis" data-tip="${esc(r.message_zh || r.message || "")}">${esc(r.message_zh || r.message || "")}</div>
+            <span class="g-row-no"><b style="color:var(--forest)">行 ${esc(String(rowNo))}</b>${col ? ` / <b style="color:var(--bark)">${col}</b>` : ""}</span>
+            <span class="g-msg-cell" data-tip="${esc(rawMsg)}">${msgHtml}</span>
+            <span class="g-expect-cell" data-tip="${esc(r.expected || "-")}">${esc(r.expected || "-")}</span>
+            <span class="g-actual" data-tip="实际值: ${actualVal}">${actualVal}</span>
           </li>
-        `).join("");
+        `;}).join("");
         const catText = esc(g.category);
         const locLabel = esc(g.file) + " / " + esc(g.sheet);
         const ruleTitleText = esc(g.ruleTitle);
@@ -1719,10 +1953,50 @@
               </div>
               <span class="g-badge">${g.rows.length} 条</span>
             </header>
+            ${descHtml ? `<div class="g-desc">${descHtml}</div>` : ""}
+            <div class="g-list-header"><span>位置</span><span>问题描述</span><span>期望值</span><span>实际值</span></div>
             <ul class="g-list">${details}</ul>
           </section>
         `;
       }).join("");
+
+      renderGroupPagination(flatItems.length);
+    }
+
+    function renderGroupPagination(totalRows) {
+      const wrap = document.getElementById("groupPaginationWrap");
+      const totalPages = Math.max(1, Math.ceil(totalRows / GROUP_PAGE_SIZE));
+      if (totalRows <= GROUP_PAGE_SIZE) {
+        wrap.hidden = true;
+        return;
+      }
+      wrap.hidden = false;
+      let html = `<button onclick="goGroupPage(${groupState.page - 1})" ${groupState.page <= 1 ? 'disabled' : ''}>‹</button>`;
+      const maxVisible = 7;
+      let startPage = Math.max(1, groupState.page - Math.floor(maxVisible / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
+      if (startPage > 1) {
+        html += `<button onclick="goGroupPage(1)">1</button>`;
+        if (startPage > 2) html += `<span class="page-info">…</span>`;
+      }
+      for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="${i === groupState.page ? 'active' : ''}" onclick="goGroupPage(${i})">${i}</button>`;
+      }
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) html += `<span class="page-info">…</span>`;
+        html += `<button onclick="goGroupPage(${totalPages})">${totalPages}</button>`;
+      }
+      html += `<button onclick="goGroupPage(${groupState.page + 1})" ${groupState.page >= totalPages ? 'disabled' : ''}>›</button>`;
+      html += `<span class="page-info">${groupState.page}/${totalPages} 页 · 共 ${totalRows} 条</span>`;
+      wrap.innerHTML = html;
+    }
+
+    function goGroupPage(p) {
+      const totalPages = Math.max(1, Math.ceil(groupState.totalRows / GROUP_PAGE_SIZE));
+      groupState.page = Math.max(1, Math.min(p, totalPages));
+      renderGrouped(currentRows);
+      document.getElementById("groupWrap").scrollTop = 0;
     }
 
     /* ── Global Tooltip (JS-based, escapes overflow containers) ── */
@@ -1782,13 +2056,16 @@
       const tableWrap = document.getElementById("tableWrap");
       const groupWrap = document.getElementById("groupWrap");
       const paginationWrap = document.getElementById("paginationWrap");
+      const groupPaginationWrap = document.getElementById("groupPaginationWrap");
       if (state.viewMode === "grouped") {
         tableWrap.hidden = true;
         paginationWrap.hidden = true;
         groupWrap.hidden = false;
+        groupState.page = 1;
         renderGrouped(currentRows);
       } else {
         groupWrap.hidden = true;
+        groupPaginationWrap.hidden = true;
         tableWrap.hidden = false;
         renderFlat(currentRows);
         renderPagination(currentRows.length);
@@ -1964,6 +2241,36 @@
     renderInputFiles();
     renderRuleCatalog();
     resetFilter();
+
+    /* ── Column Resize ── */
+    (function initColumnResize() {
+      const table = document.getElementById("issueTable");
+      if (!table) return;
+      const resizers = table.querySelectorAll(".col-resizer");
+      resizers.forEach((resizer) => {
+        const th = resizer.parentElement;
+        let startX, startW;
+        resizer.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          startX = e.pageX;
+          startW = th.offsetWidth;
+          resizer.classList.add("resizing");
+          const onMove = (ev) => {
+            const diff = ev.pageX - startX;
+            const newW = Math.max(40, startW + diff);
+            th.style.width = newW + "px";
+            th.style.minWidth = newW + "px";
+          };
+          const onUp = () => {
+            resizer.classList.remove("resizing");
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+          };
+          document.addEventListener("mousemove", onMove);
+          document.addEventListener("mouseup", onUp);
+        });
+      });
+    })();
 
   </script>
 </body>
