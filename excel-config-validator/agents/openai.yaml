@@ -3,7 +3,7 @@ interface:
   short_description: "Validate Excel/CSV configs with traceable, rule-based check reports."
   default_prompt: >
     Use $excel-config-validator to validate multi-file Excel/CSV configurations
-    against rules.json and generate JSON, Markdown, and HTML reports.
+    against rules.json and generate JSON and HTML reports.
 
 instructions: |
   ## 核心职责
@@ -33,7 +33,6 @@ instructions: |
   ## 输出文件
   - result.json — 完整结构化结果（含 issues + 统计）
   - issues.csv — 表格化问题清单
-  - report.md — Markdown 摘要报告
   - report.html — 交互式 HTML 报告（筛选/排序/分页）
   - run_state.json — 运行状态（支持断点恢复）
   - compiled_rules.json — 编译后规则（含摘要统计）
