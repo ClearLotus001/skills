@@ -1,7 +1,8 @@
 """轻量 Excel/CSV 元数据探查 — 仅输出 sheet 名与列头，不读取行数据。
 
-用法：python scripts/inspect_metadata.py <file1> [file2 ...]
-输出：每个文件的 sheet 列表与各 sheet 的列名（JSON 格式，stdout）
+用法：python scripts/inspect_metadata.py <file1> [file2 ...] [--out <output.json>]
+输出：每个文件的 sheet 列表与各 sheet 的列名（JSON 格式）
+      指定 --out 时写入文件；否则输出到 stdout。
 """
 from __future__ import annotations
 
@@ -96,6 +97,7 @@ def inspect_file(path: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description="探查 Excel/CSV 文件的 sheet 与列头元数据")
     parser.add_argument("files", nargs="+", help="要探查的文件路径")
+    parser.add_argument("--out", default=None, help="可选：输出 JSON 文件路径（不指定则输出到 stdout）")
     args = parser.parse_args()
 
     results = []
@@ -109,8 +111,15 @@ def main() -> int:
         except Exception as exc:
             results.append({"file": p.name, "error": str(exc)})
 
-    json.dump(results, sys.stdout, ensure_ascii=False, indent=2)
-    print()
+    json_text = json.dumps(results, ensure_ascii=False, indent=2)
+
+    if args.out:
+        out_path = Path(args.out).resolve()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json_text + "\n", encoding="utf-8")
+    else:
+        sys.stdout.write(json_text + "\n")
+        sys.stdout.flush()
     return 0
 
 

@@ -425,10 +425,15 @@ compile_rules → parse_excel → validate_local → validate_relations → vali
 在编写规则之前，可使用独立的元数据探查脚本快速了解文件结构：
 
 ```powershell
+# 输出到 stdout
 python excel-config-validator/scripts/inspect_metadata.py C:\data\orders.xlsx C:\data\products.csv
+
+# 输出到文件（推荐，避免在某些环境中 stdout 被截断）
+python excel-config-validator/scripts/inspect_metadata.py C:\data\orders.xlsx C:\data\products.csv --out C:\data\metadata.json
 ```
 
 输出各文件的工作表名和列头（JSON 格式），不读取行数据，适合快速摸清表结构。
+指定 `--out` 参数时结果写入文件，否则输出到 stdout。
 
 ## 9. 可执行命令示例
 
