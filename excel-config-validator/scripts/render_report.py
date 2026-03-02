@@ -9,11 +9,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import (
     atomic_write_json,
@@ -28,7 +31,7 @@ from common import (
 )
 
 
-RULE_GROUP_KEYS = ("schema_rules", "range_rules", "row_rules", "relation_rules", "global_rules")
+RULE_GROUP_KEYS = ("schema_rules", "range_rules", "row_rules", "relation_rules", "aggregate_rules", "global_rules")
 
 
 def format_timestamp_display(iso_text: str) -> str:
@@ -59,6 +62,7 @@ def rule_group_label_zh(group_key: str) -> str:
         "range_rules": "范围规则",
         "row_rules": "行规则",
         "relation_rules": "关联规则",
+        "aggregate_rules": "聚合规则",
         "global_rules": "全局规则",
     }
     return table.get(group_key, group_key)
@@ -153,7 +157,7 @@ def rule_checks_text(rule: dict[str, Any]) -> str:
             if isinstance(item, str):
                 labels.append(check_label_zh(item))
             elif isinstance(item, dict):
-                labels.append(check_label_zh(str(item.get("type") or item.get("check") or "")))
+                labels.append(check_label_zh(str(item.get("type") or "")))
         labels = [x for x in labels if x]
         if labels:
             return "、".join(labels)
@@ -164,8 +168,8 @@ def rule_checks_text(rule: dict[str, Any]) -> str:
 
 
 def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict[str, dict[str, Any]]) -> tuple[str, str]:
-    explicit_title = str(rule.get("title") or rule.get("name") or rule.get("label") or "").strip()
-    explicit_desc = str(rule.get("description") or rule.get("message") or "").strip()
+    explicit_title = str(rule.get("title") or "").strip()
+    explicit_desc = str(rule.get("description") or "").strip()
     if explicit_title:
         return explicit_title, explicit_desc or explicit_title
 
@@ -195,19 +199,26 @@ def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict
 
     if group_key == "row_rules":
         ds = str(rule.get("dataset", ""))
-        when_expr = str(rule.get("when", "")).strip()
-        expr = str(rule.get("expression") or rule.get("assert") or "").strip()
         ds_loc = dataset_location_text(ds, ds_cfg)
-        title = f"{ds_loc} 行表达式校验"
-        desc = str(rule.get("message", "")).strip() or f"when={when_expr or 'True'}; assert={expr}"
+        branches = rule.get("branches")
+        if isinstance(branches, list) and branches:
+            branch_count = len(branches)
+            has_else = bool(str(rule.get("else_assert") or "").strip())
+            title = f"{ds_loc} 条件分支校验（{branch_count} 分支{'+ else' if has_else else ''}）"
+            desc = str(rule.get("message", "")).strip() or f"{branch_count} 个条件分支"
+        else:
+            when_expr = str(rule.get("when", "")).strip()
+            assert_expr = str(rule.get("assert", "")).strip()
+            title = f"{ds_loc} 行表达式校验"
+            desc = str(rule.get("description", "")).strip() or f"when={when_expr or 'True'}; assert={assert_expr}"
         return title, desc
 
     if group_key == "relation_rules":
-        source = str(rule.get("source_dataset") or rule.get("from_dataset") or "")
-        target = str(rule.get("target_dataset") or rule.get("to_dataset") or "")
-        source_key = str(rule.get("source_key") or rule.get("from_key") or "")
-        target_key = str(rule.get("target_key") or rule.get("to_key") or "")
-        mode = str(rule.get("mode") or rule.get("relation_type") or "fk_exists")
+        source = str(rule.get("source_dataset") or "")
+        target = str(rule.get("target_dataset") or "")
+        source_key = str(rule.get("source_key") or "")
+        target_key = str(rule.get("target_key") or "")
+        mode = str(rule.get("mode") or "fk_exists")
         source_loc = dataset_location_text(source, ds_cfg)
         target_loc = dataset_location_text(target, ds_cfg)
         title = f"{source_loc}.{source_key} -> {target_loc}.{target_key}"
@@ -215,6 +226,17 @@ def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict
             f"{source_loc}.{source_key} 与 "
             f"{target_loc}.{target_key} 关联检查（{mode}）"
         )
+        return title, desc
+
+    if group_key == "aggregate_rules":
+        ds = str(rule.get("dataset", ""))
+        col = str(rule.get("column", ""))
+        func = str(rule.get("function", "")).strip()
+        group_by_col = str(rule.get("group_by", "")).strip()
+        ds_loc = dataset_location_text(ds, ds_cfg)
+        title = f"{ds_loc}.{col} {func}() 聚合校验"
+        group_info = f"（按 '{group_by_col}' 分组）" if group_by_col else ""
+        desc = f"{ds_loc} 的列 '{col}' 执行 {func} 聚合校验{group_info}"
         return title, desc
 
     title = str(rule.get("rule_id", "全局规则"))
@@ -321,113 +343,17 @@ def enrich_issues_with_rule_info(
     return out
 
 
-def load_i18n_config(i18n_path: Path | None) -> dict[str, Any]:
-    if i18n_path is None or not i18n_path.exists():
-        return {"exact": {}, "regex": []}
-    try:
-        data = json.loads(i18n_path.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        return {"exact": {}, "regex": []}
-    if not isinstance(data, dict):
-        return {"exact": {}, "regex": []}
-    exact = data.get("exact", {})
-    regex_rules = data.get("regex", [])
-    if not isinstance(exact, dict):
-        exact = {}
-    if not isinstance(regex_rules, list):
-        regex_rules = []
-    return {"exact": exact, "regex": regex_rules}
-
-
-def translate_message_zh(message: str, i18n_config: dict[str, Any] | None = None) -> str:
-    msg = message.strip()
-    if not msg:
-        return msg
-
-    config = i18n_config or {}
-    exact = config.get("exact", {})
-    if isinstance(exact, dict) and msg in exact:
-        return str(exact[msg])
-
-    regex_rules = config.get("regex", [])
-    if isinstance(regex_rules, list):
-        for item in regex_rules:
-            if not isinstance(item, dict):
-                continue
-            pattern = str(item.get("pattern", ""))
-            zh_template = str(item.get("zh", ""))
-            if not pattern or not zh_template:
-                continue
-            try:
-                matched = re.match(pattern, msg)
-            except re.error:
-                continue
-            if not matched:
-                continue
-            translated = zh_template
-            for i, value in enumerate(matched.groups()):
-                translated = translated.replace(f"{{{i}}}", value)
-            return translated
-
-    patterns: list[tuple[str, str]] = [
-        (
-            r"^missing required column '([^']+)' in sheet '([^']+)'$",
-            "工作表 '{1}' 缺少必需列 '{0}'",
-        ),
-        (
-            r"^dataset '([^']+)' expects missing sheet '([^']+)'$",
-            "数据集 '{0}' 期望的工作表 '{1}' 不存在",
-        ),
-        (
-            r"^relation source dataset '([^']+)' is undefined$",
-            "关联规则中的源数据集 '{0}' 未定义",
-        ),
-        (
-            r"^relation target dataset '([^']+)' is undefined$",
-            "关联规则中的目标数据集 '{0}' 未定义",
-        ),
-        (
-            r"^source sheet '([^']+)' for dataset '([^']+)' not found$",
-            "数据集 '{1}' 的源工作表 '{0}' 未找到",
-        ),
-        (
-            r"^target sheet '([^']+)' for dataset '([^']+)' not found$",
-            "数据集 '{1}' 的目标工作表 '{0}' 未找到",
-        ),
-        (
-            r"^rule_id '([^']+)' appears in multiple rule groups$",
-            "规则 ID '{0}' 在多个规则组中重复出现",
-        ),
-        (
-            r"^quality gate failed: errors exceed ([0-9]+)$",
-            "质量门禁失败：错误数量超过阈值 {0}",
-        ),
-    ]
-    for pattern, zh_template in patterns:
-        matched = re.match(pattern, msg)
-        if not matched:
-            continue
-        translated = zh_template
-        for i, value in enumerate(matched.groups()):
-            translated = translated.replace(f"{{{i}}}", value)
-        return translated
-
-    return msg
-
-
-def localize_issues(issues: list[dict[str, Any]], i18n_config: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def localize_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """补全 severity_zh / category_zh / message_zh 等本地化字段。"""
     localized: list[dict[str, Any]] = []
     for issue in issues:
         x = dict(issue)
-        x["severity"] = severity_key(x.get("severity") or x.get("severity_zh"))
+        x["severity"] = severity_key(x.get("severity"))
         x["severity_zh"] = severity_label_zh(x.get("severity"))
-        x["category"] = category_key(x.get("category") or x.get("category_zh"))
+        x["category"] = category_key(x.get("category"))
         x["category_zh"] = category_label_zh(x.get("category"))
         x["message"] = str(x.get("message", ""))
-        if not str(x.get("message_zh", "")).strip():
-            x["message_zh"] = translate_message_zh(x["message"], i18n_config=i18n_config)
-        else:
-            x["message_zh"] = str(x["message_zh"])
+        x["message_zh"] = str(x.get("message_zh", "")).strip() or x["message"]
         localized.append(x)
     return localized
 
@@ -611,19 +537,17 @@ def render_reports(
     issue_files: list[Path],
     md_template_path: Path | None = None,
     html_template_path: Path | None = None,
-    i18n_path: Path | None = None,
 ) -> tuple[Path, Path, Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     compiled_rules = json.loads(compiled_rules_path.read_text(encoding="utf-8"))
-    i18n_config = load_i18n_config(i18n_path)
     input_files = summarize_input_files(manifest)
     rule_catalog, rule_catalog_by_id = build_rule_catalog(compiled_rules)
 
     issues: list[dict[str, Any]] = []
     for issue_file in issue_files:
         issues.extend(load_issues(issue_file))
-    issues = localize_issues(issues, i18n_config=i18n_config)
+    issues = localize_issues(issues)
     issues = enrich_issues_with_rule_info(issues, rule_catalog_by_id)
     issues.sort(key=lambda x: (severity_rank(str(x.get("severity", "info"))), str(x.get("rule_id", ""))))
 
@@ -773,7 +697,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--issue-files", nargs="+", required=True, help="issue JSON 文件列表")
     parser.add_argument("--md-template", default=None, help="可选：Markdown 模板路径")
     parser.add_argument("--html-template", default=None, help="可选：HTML 模板路径")
-    parser.add_argument("--message-i18n", default=None, help="可选：message 翻译配置路径")
     return parser
 
 
@@ -785,7 +708,6 @@ def main() -> int:
     issue_files = [Path(x).resolve() for x in args.issue_files]
     md_template_path = Path(args.md_template).resolve() if args.md_template else None
     html_template_path = Path(args.html_template).resolve() if args.html_template else None
-    i18n_path = Path(args.message_i18n).resolve() if args.message_i18n else None
 
     try:
         result_json_path, issues_csv_path, report_md_path, report_html_path = render_reports(
@@ -795,7 +717,6 @@ def main() -> int:
             issue_files=issue_files,
             md_template_path=md_template_path,
             html_template_path=html_template_path,
-            i18n_path=i18n_path,
         )
     except Exception as exc:  # noqa: BLE001
         print(f"[错误] render_report 执行失败：{exc}")

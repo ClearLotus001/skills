@@ -118,7 +118,7 @@ def dataset_configs(rules: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for item in raw:
             if not isinstance(item, dict):
                 continue
-            ds_id = item.get("id") or item.get("name")
+            ds_id = item.get("id")
             if ds_id:
                 result[str(ds_id)] = item
     return result

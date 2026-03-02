@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso
 from validation_common import make_exception_issue, make_issue
@@ -17,7 +21,7 @@ from validation_common import make_exception_issue, make_issue
 
 def iter_rule_items(rules: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     out: list[tuple[str, dict[str, Any]]] = []
-    for key in ("schema_rules", "range_rules", "row_rules", "relation_rules", "global_rules"):
+    for key in ("schema_rules", "range_rules", "row_rules", "relation_rules", "aggregate_rules", "global_rules"):
         values = rules.get(key, [])
         if not isinstance(values, list):
             continue

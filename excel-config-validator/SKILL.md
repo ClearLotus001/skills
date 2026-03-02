@@ -91,20 +91,21 @@ python scripts/run_validator.py \
   - 开闭区间控制（`include_min`/`include_max`）
   - 可空控制（`allow_empty`）
 - `row_rules`：
-  - 行表达式断言（`expression`/`assert`）
+  - 行表达式断言（`assert`）
   - 条件触发（`when`）
+  - 条件分支（`branches` + `else_assert`）
   - 内置函数：`value/text/num/intv/empty/exists/match`
 - `relation_rules`：
   - 数据集/文件/工作表/键列存在性
   - 外键存在性（`fk_exists`）
   - 集合一致性（`set_equal`）
+  - 基数约束（`one_to_one`、`one_to_many`、`many_to_many`）
 - `global`：`rule_id` 跨规则组重复检查。
 - 报告：
   - `result.json` 含严重级别/类别/规则统计与分组摘要
   - `report.html` 支持明细表/按类别分组双视图、筛选、排序、分页、搜索
 
 ## 当前未完整实现
-- 高阶关系基数约束（1:1、1:N、N:N）与聚合一致性规则。
 - `row_rules` 的结构化 then/else 动作（当前以表达式断言为主）。
 
 ## 使用文档

@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, file_sha256, utc_now_iso
 
@@ -19,6 +23,7 @@ RULE_KEYS = (
     "range_rules",
     "row_rules",
     "relation_rules",
+    "aggregate_rules",
     "global_rules",
 )
 
@@ -31,28 +36,20 @@ def dataset_ids_from_rules(rules: dict[str, Any]) -> set[str]:
     elif isinstance(datasets, list):
         for item in datasets:
             if isinstance(item, dict):
-                ds = item.get("id") or item.get("name")
+                ds = item.get("id")
                 if ds:
                     result.add(str(ds))
     return result
 
 
 def extract_relation_dataset_refs(relation_rule: dict[str, Any]) -> tuple[str | None, str | None]:
-    left = (
-        relation_rule.get("source_dataset")
-        or relation_rule.get("from_dataset")
-        or relation_rule.get("left_dataset")
-    )
-    right = (
-        relation_rule.get("target_dataset")
-        or relation_rule.get("to_dataset")
-        or relation_rule.get("right_dataset")
-    )
+    left = relation_rule.get("source_dataset")
+    right = relation_rule.get("target_dataset")
     return (str(left) if left is not None else None, str(right) if right is not None else None)
 
 
 def extract_dataset_ref(rule: dict[str, Any]) -> str | None:
-    ds = rule.get("dataset") or rule.get("dataset_id") or rule.get("source_dataset")
+    ds = rule.get("dataset")
     if ds is None:
         return None
     return str(ds)
@@ -73,7 +70,7 @@ def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
     if not datasets:
         errors.append("datasets 至少需要定义一个数据集 id")
 
-    for group_key in ("schema_rules", "range_rules", "row_rules"):
+    for group_key in ("schema_rules", "range_rules", "row_rules", "aggregate_rules"):
         group_rules = rules.get(group_key, [])
         if not isinstance(group_rules, list):
             continue
@@ -127,20 +124,32 @@ def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
 
 
 def select_rules(raw_rules: dict[str, Any], rule_set: str | None) -> dict[str, Any]:
+    out = dict(raw_rules)
+
+    # 过滤 enabled=false 的规则
+    for key in RULE_KEYS:
+        items = out.get(key, [])
+        if not isinstance(items, list):
+            continue
+        out[key] = [
+            item for item in items
+            if isinstance(item, dict) and item.get("enabled", True)
+        ]
+
     if not rule_set:
-        return dict(raw_rules)
+        return out
+
     rule_sets = raw_rules.get("rule_sets")
     if not isinstance(rule_sets, dict):
-        return dict(raw_rules)
+        return out
     selected_raw = rule_sets.get(rule_set)
     if not isinstance(selected_raw, list):
-        return dict(raw_rules)
+        return out
     selected_ids = {str(x) for x in selected_raw}
 
-    out = dict(raw_rules)
     referenced_datasets: set[str] = set()
     for key in RULE_KEYS:
-        items = raw_rules.get(key, [])
+        items = out.get(key, [])
         if not isinstance(items, list):
             out[key] = []
             continue
@@ -151,15 +160,15 @@ def select_rules(raw_rules: dict[str, Any], rule_set: str | None) -> dict[str, A
         ]
         out[key] = selected_items
 
-        if key in {"schema_rules", "range_rules", "row_rules"}:
+        if key in {"schema_rules", "range_rules", "row_rules", "aggregate_rules"}:
             for item in selected_items:
-                ds = item.get("dataset") or item.get("dataset_id")
+                ds = item.get("dataset")
                 if ds:
                     referenced_datasets.add(str(ds))
         if key == "relation_rules":
             for item in selected_items:
-                source = item.get("source_dataset") or item.get("from_dataset") or item.get("left_dataset")
-                target = item.get("target_dataset") or item.get("to_dataset") or item.get("right_dataset")
+                source = item.get("source_dataset")
+                target = item.get("target_dataset")
                 if source:
                     referenced_datasets.add(str(source))
                 if target:
@@ -173,7 +182,7 @@ def select_rules(raw_rules: dict[str, Any], rule_set: str | None) -> dict[str, A
         for item in datasets:
             if not isinstance(item, dict):
                 continue
-            ds_id = item.get("id") or item.get("name")
+            ds_id = item.get("id")
             if ds_id and str(ds_id) in referenced_datasets:
                 filtered.append(item)
         out["datasets"] = filtered

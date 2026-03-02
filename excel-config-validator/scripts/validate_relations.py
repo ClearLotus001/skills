@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso
 from validation_common import (
@@ -19,40 +23,19 @@ from validation_common import (
     iter_rows_from_entry,
     make_exception_issue,
     make_issue,
-    rows_from_entry,
     value_text,
 )
 
 
 def relation_source_target(relation: dict[str, Any]) -> tuple[str, str]:
-    source = str(
-        relation.get("source_dataset")
-        or relation.get("from_dataset")
-        or relation.get("left_dataset")
-        or ""
-    )
-    target = str(
-        relation.get("target_dataset")
-        or relation.get("to_dataset")
-        or relation.get("right_dataset")
-        or ""
-    )
+    source = str(relation.get("source_dataset") or "")
+    target = str(relation.get("target_dataset") or "")
     return source, target
 
 
 def relation_keys(relation: dict[str, Any]) -> tuple[str, str]:
-    source_key = str(
-        relation.get("source_key")
-        or relation.get("from_key")
-        or relation.get("left_key")
-        or ""
-    )
-    target_key = str(
-        relation.get("target_key")
-        or relation.get("to_key")
-        or relation.get("right_key")
-        or ""
-    )
+    source_key = str(relation.get("source_key") or "")
+    target_key = str(relation.get("target_key") or "")
     return source_key, target_key
 
 
@@ -109,6 +92,67 @@ def table_key_ref(file_name: str, sheet: str, column: str) -> str:
     return f"{file_name}/{sheet}.{column}"
 
 
+def _stream_key_set(
+    entry: dict[str, Any],
+    key_col: str,
+) -> set[str]:
+    """流式扫描 entry 的行数据，构建 key 集合（不一次性加载全部行）。"""
+    key_set: set[str] = set()
+    for chunk in iter_rows_from_entry(entry):
+        for row_item in chunk:
+            if not isinstance(row_item, dict):
+                continue
+            values = row_item.get("values", {})
+            if not isinstance(values, dict):
+                continue
+            k = canonical_key(values.get(key_col))
+            if k:
+                key_set.add(k)
+    return key_set
+
+
+def _stream_key_counter(
+    entry: dict[str, Any],
+    key_col: str,
+) -> dict[str, int]:
+    """流式扫描 entry 的行数据，构建 key 计数器。"""
+    counter: dict[str, int] = {}
+    for chunk in iter_rows_from_entry(entry):
+        for row_item in chunk:
+            if not isinstance(row_item, dict):
+                continue
+            values = row_item.get("values", {})
+            if not isinstance(values, dict):
+                continue
+            k = canonical_key(values.get(key_col))
+            if k:
+                counter[k] = counter.get(k, 0) + 1
+    return counter
+
+
+SUPPORTED_MODES = {
+    "fk_exists",
+    "set_equal", "equal_set", "same_set",
+    "one_to_one", "1:1",
+    "one_to_many", "1:n", "1:N",
+    "many_to_many", "n:n", "N:N", "m:n", "M:N",
+}
+
+
+def _normalize_mode(raw: str) -> str:
+    """将模式别名统一为标准名称。"""
+    m = raw.strip().lower()
+    if m in {"set_equal", "equal_set", "same_set"}:
+        return "set_equal"
+    if m in {"one_to_one", "1:1"}:
+        return "one_to_one"
+    if m in {"one_to_many", "1:n"}:
+        return "one_to_many"
+    if m in {"many_to_many", "n:n", "m:n"}:
+        return "many_to_many"
+    return m
+
+
 def append_relation_key_issues(
     *,
     relation: dict[str, Any],
@@ -120,32 +164,30 @@ def append_relation_key_issues(
     severity: str,
     issues: list[dict[str, Any]],
 ) -> None:
-    mode = str(relation.get("mode") or relation.get("relation_type") or "fk_exists").strip().lower()
+    raw_mode = str(relation.get("mode") or "fk_exists").strip().lower()
+    mode = _normalize_mode(raw_mode)
     allow_source_empty = bool(relation.get("allow_source_empty", False))
-    supported_modes = {"fk_exists", "set_equal", "equal_set", "same_set"}
 
     source_headers = [str(x) for x in source_entry.get("headers", [])]
     target_headers = [str(x) for x in target_entry.get("headers", [])]
-    source_rows = rows_from_entry(source_entry)
-    target_rows = rows_from_entry(target_entry)
     source_file_name = str(source_entry.get("file", ""))
     source_sheet_name = str(source_entry.get("sheet", ""))
     target_file_name = str(target_entry.get("file", ""))
     target_sheet_name = str(target_entry.get("sheet", ""))
 
-    if mode not in supported_modes:
+    if raw_mode not in SUPPORTED_MODES:
         issues.append(
             make_issue(
                 category="relation",
                 rule_id=rule_id,
                 severity="error",
-                message=f"不支持的关联模式 '{mode}'",
+                message=f"不支持的关联模式 '{raw_mode}'",
                 file_name=source_file_name,
                 sheet=source_sheet_name,
                 row=0,
                 column="",
-                expected="fk_exists 或 set_equal",
-                actual=mode,
+                expected="fk_exists / set_equal / one_to_one / one_to_many / many_to_many",
+                actual=raw_mode,
             )
         )
         return
@@ -204,28 +246,10 @@ def append_relation_key_issues(
     source_ref = table_key_ref(source_file_name, source_sheet_name, source_key)
     target_ref = table_key_ref(target_file_name, target_sheet_name, target_key)
 
-    target_key_set: set[str] = set()
-    for row_item in target_rows:
-        if not isinstance(row_item, dict):
-            continue
-        values = row_item.get("values", {})
-        if not isinstance(values, dict):
-            continue
-        k = canonical_key(values.get(target_key))
-        if k:
-            target_key_set.add(k)
-
-    if mode in {"set_equal", "equal_set", "same_set"}:
-        source_key_set: set[str] = set()
-        for row_item in source_rows:
-            if not isinstance(row_item, dict):
-                continue
-            values = row_item.get("values", {})
-            if not isinstance(values, dict):
-                continue
-            k = canonical_key(values.get(source_key))
-            if k:
-                source_key_set.add(k)
+    # ---- set_equal: 集合完全一致 ----
+    if mode == "set_equal":
+        target_key_set = _stream_key_set(target_entry, target_key)
+        source_key_set = _stream_key_set(source_entry, source_key)
 
         missing_in_target = sorted(source_key_set - target_key_set)
         missing_in_source = sorted(target_key_set - source_key_set)
@@ -262,50 +286,244 @@ def append_relation_key_issues(
             )
         return
 
-    for row_item in source_rows:
-        if not isinstance(row_item, dict):
-            continue
-        row_num = int(row_item.get("row", 0) or 0)
-        values = row_item.get("values", {})
-        if not isinstance(values, dict):
-            continue
+    # ---- one_to_one: 双方键唯一且集合一致 ----
+    if mode == "one_to_one":
+        target_counter = _stream_key_counter(target_entry, target_key)
+        source_counter = _stream_key_counter(source_entry, source_key)
 
-        raw_source_value = values.get(source_key)
-        source_value = canonical_key(raw_source_value)
-        if not source_value:
-            if not allow_source_empty:
-                issues.append(
-                    make_issue(
-                        category="relation",
-                        rule_id=rule_id,
-                        severity=severity,
-                        message=f"关联键 '{source_key}' 不能为空",
-                        file_name=source_file_name,
-                        sheet=source_sheet_name,
-                        row=row_num,
-                        column=source_key,
-                        expected=f"非空且可在 {target_ref} 中找到",
-                        actual="空值",
-                    )
-                )
-            continue
-
-        if source_value not in target_key_set:
-            show_value = value_text(raw_source_value)
+        # 检查目标键唯一性
+        dup_target = {k: v for k, v in target_counter.items() if v > 1}
+        if dup_target:
+            sample = sorted(dup_target.keys())[:5]
             issues.append(
                 make_issue(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
-                    file_name=source_file_name,
-                    sheet=source_sheet_name,
-                    row=row_num,
-                    column=source_key,
-                    expected=f"存在于 {target_ref}",
-                    actual=show_value,
+                    message=f"1:1 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
+                    file_name=target_file_name,
+                    sheet=target_sheet_name,
+                    row=0,
+                    column=target_key,
+                    expected="目标键唯一",
+                    actual=f"重复示例: {', '.join(sample)}",
                 )
             )
+
+        # 检查源键唯一性
+        dup_source = {k: v for k, v in source_counter.items() if v > 1}
+        if dup_source:
+            sample = sorted(dup_source.keys())[:5]
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"1:1 关联要求源键唯一，但有 {len(dup_source)} 个键重复",
+                    file_name=source_file_name,
+                    sheet=source_sheet_name,
+                    row=0,
+                    column=source_key,
+                    expected="源键唯一",
+                    actual=f"重复示例: {', '.join(sample)}",
+                )
+            )
+
+        # 检查集合一致性
+        source_set = set(source_counter.keys())
+        target_set = set(target_counter.keys())
+        missing_in_target = sorted(source_set - target_set)
+        missing_in_source = sorted(target_set - source_set)
+        if missing_in_target:
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"1:1 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
+                    file_name=source_file_name,
+                    sheet=source_sheet_name,
+                    row=0,
+                    column=source_key,
+                    expected=f"双向一致（{target_ref}）",
+                    actual=f"缺失示例: {', '.join(missing_in_target[:5])}",
+                )
+            )
+        if missing_in_source:
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"1:1 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
+                    file_name=target_file_name,
+                    sheet=target_sheet_name,
+                    row=0,
+                    column=target_key,
+                    expected=f"双向一致（{source_ref}）",
+                    actual=f"缺失示例: {', '.join(missing_in_source[:5])}",
+                )
+            )
+        return
+
+    # ---- one_to_many: 目标键唯一，源键值存在于目标 ----
+    if mode == "one_to_many":
+        target_counter = _stream_key_counter(target_entry, target_key)
+
+        # 检查目标键唯一性
+        dup_target = {k: v for k, v in target_counter.items() if v > 1}
+        if dup_target:
+            sample = sorted(dup_target.keys())[:5]
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"1:N 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
+                    file_name=target_file_name,
+                    sheet=target_sheet_name,
+                    row=0,
+                    column=target_key,
+                    expected="目标键唯一",
+                    actual=f"重复示例: {', '.join(sample)}",
+                )
+            )
+
+        # 流式检查源键是否存在于目标
+        target_key_set = set(target_counter.keys())
+        for chunk in iter_rows_from_entry(source_entry):
+            for row_item in chunk:
+                if not isinstance(row_item, dict):
+                    continue
+                row_num = int(row_item.get("row", 0) or 0)
+                values = row_item.get("values", {})
+                if not isinstance(values, dict):
+                    continue
+                raw_source_value = values.get(source_key)
+                source_value = canonical_key(raw_source_value)
+                if not source_value:
+                    if not allow_source_empty:
+                        issues.append(
+                            make_issue(
+                                category="relation",
+                                rule_id=rule_id,
+                                severity=severity,
+                                message=f"关联键 '{source_key}' 不能为空",
+                                file_name=source_file_name,
+                                sheet=source_sheet_name,
+                                row=row_num,
+                                column=source_key,
+                                expected=f"非空且可在 {target_ref} 中找到",
+                                actual="空值",
+                            )
+                        )
+                    continue
+                if source_value not in target_key_set:
+                    show_value = value_text(raw_source_value)
+                    issues.append(
+                        make_issue(
+                            category="relation",
+                            rule_id=rule_id,
+                            severity=severity,
+                            message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
+                            file_name=source_file_name,
+                            sheet=source_sheet_name,
+                            row=row_num,
+                            column=source_key,
+                            expected=f"存在于 {target_ref}",
+                            actual=show_value,
+                        )
+                    )
+        return
+
+    # ---- many_to_many: 双向存在性检查 ----
+    if mode == "many_to_many":
+        target_key_set = _stream_key_set(target_entry, target_key)
+        source_key_set = _stream_key_set(source_entry, source_key)
+
+        missing_in_target = sorted(source_key_set - target_key_set)
+        missing_in_source = sorted(target_key_set - source_key_set)
+
+        if missing_in_target:
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"N:N 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
+                    file_name=source_file_name,
+                    sheet=source_sheet_name,
+                    row=0,
+                    column=source_key,
+                    expected=f"所有源键存在于 {target_ref}",
+                    actual=f"缺失示例: {', '.join(missing_in_target[:5])}",
+                )
+            )
+        if missing_in_source:
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"N:N 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
+                    file_name=target_file_name,
+                    sheet=target_sheet_name,
+                    row=0,
+                    column=target_key,
+                    expected=f"所有目标键存在于 {source_ref}",
+                    actual=f"缺失示例: {', '.join(missing_in_source[:5])}",
+                )
+            )
+        return
+
+    # ---- fk_exists: 外键存在性（默认模式，流式处理源行） ----
+    target_key_set = _stream_key_set(target_entry, target_key)
+
+    for chunk in iter_rows_from_entry(source_entry):
+        for row_item in chunk:
+            if not isinstance(row_item, dict):
+                continue
+            row_num = int(row_item.get("row", 0) or 0)
+            values = row_item.get("values", {})
+            if not isinstance(values, dict):
+                continue
+
+            raw_source_value = values.get(source_key)
+            source_value = canonical_key(raw_source_value)
+            if not source_value:
+                if not allow_source_empty:
+                    issues.append(
+                        make_issue(
+                            category="relation",
+                            rule_id=rule_id,
+                            severity=severity,
+                            message=f"关联键 '{source_key}' 不能为空",
+                            file_name=source_file_name,
+                            sheet=source_sheet_name,
+                            row=row_num,
+                            column=source_key,
+                            expected=f"非空且可在 {target_ref} 中找到",
+                            actual="空值",
+                        )
+                    )
+                continue
+
+            if source_value not in target_key_set:
+                show_value = value_text(raw_source_value)
+                issues.append(
+                    make_issue(
+                        category="relation",
+                        rule_id=rule_id,
+                        severity=severity,
+                        message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
+                        file_name=source_file_name,
+                        sheet=source_sheet_name,
+                        row=row_num,
+                        column=source_key,
+                        expected=f"存在于 {target_ref}",
+                        actual=show_value,
+                    )
+                )
 
 
 def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) -> Path:
@@ -321,6 +539,8 @@ def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) 
     if isinstance(relation_rules, list):
         for idx, relation in enumerate(relation_rules):
             if not isinstance(relation, dict):
+                continue
+            if not relation.get("enabled", True):
                 continue
 
             rule_id = str(relation.get("rule_id", f"RELATION_RULE_{idx}"))

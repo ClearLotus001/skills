@@ -1,9 +1,17 @@
-"""值级校验引擎 — 逐行执行 schema/range/row 规则检查。
+"""值级校验引擎 — 逐行执行 schema/range/row/aggregate 规则检查。
 
 被 validate_local.py 调用。
 支持检查类型: required、string、numeric、min_digits、date、datetime_format、
 max_length、regex、increasing、enum、unique、min_length、positive、
 non_negative、conditional_required
+
+row_rules 内置函数:
+  基础: value/text/num/intv/empty/exists/match
+  日期: date_val/days_between/days_since/today/year/month/day
+  字符串: strip/lower/upper/contains/starts_with/ends_with
+  跨行: prev_value/prev_text/prev_num
+  多列: sum_cols/coalesce/in_list
+  标量: len/min/max/abs/round/str/int/float/bool
 """
 from __future__ import annotations
 
@@ -124,7 +132,7 @@ def parse_range_value(value: Any, value_type: str) -> Any | None:
 
 
 def range_type_from_rule(rule: dict[str, Any], sample_value: Any) -> str:
-    configured = str(rule.get("value_type") or rule.get("type") or "").strip().lower()
+    configured = str(rule.get("value_type") or "").strip().lower()
     if configured in {"number", "numeric"}:
         return "number"
     if configured in {"date", "datetime"}:
@@ -160,10 +168,27 @@ def _safe_float(v: Any) -> float:
     return float(v)
 
 
-def safe_eval_row_expression(expr: str, row_values: dict[str, Any]) -> tuple[Any | None, str | None]:
+def compile_row_expression(expr: str) -> tuple[Any | None, str | None]:
+    """预编译表达式字符串为 code 对象，返回 (code, error)。
+
+    编译一次后可在循环中反复 eval(code, ...)，避免每行重复解析。
+    """
     if len(expr) > MAX_EXPRESSION_LENGTH:
         return None, f"表达式长度 {len(expr)} 超过限制 {MAX_EXPRESSION_LENGTH}"
+    try:
+        code = compile(expr, "<rule_expr>", "eval")
+    except SyntaxError as exc:
+        return None, f"表达式语法错误: {exc}"
+    return code, None
 
+
+def _build_eval_env(
+    row_values: dict[str, Any],
+    prev_row_values: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """构建 eval 执行环境，包含所有内置函数。"""
+
+    # --- 基础访问 ---
     def value(column: str, default: Any = None) -> Any:
         return row_values.get(column, default)
 
@@ -184,14 +209,124 @@ def safe_eval_row_expression(expr: str, row_values: dict[str, Any]) -> tuple[Any
         return not empty(column)
 
     def match(pattern: str, data: Any) -> bool:
-        """正则全匹配。data 直接作为待匹配文本（不再隐式按列名查找）。"""
+        """正则全匹配。data 直接作为待匹配文本。"""
         try:
             return re.fullmatch(pattern, value_text(data)) is not None
         except re.error:
             return False
 
-    env = {
+    # --- 日期运算 ---
+    def date_val(column: str) -> datetime | None:
+        """解析列值为 datetime 对象。"""
+        return parse_datetime_value(row_values.get(column))
+
+    def today() -> datetime:
+        """返回当天零点的 datetime 对象。"""
+        return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def days_between(col1: str, col2: str) -> int | None:
+        """返回 col2 - col1 的天数差。正值表示 col2 更晚。"""
+        d1 = parse_datetime_value(row_values.get(col1))
+        d2 = parse_datetime_value(row_values.get(col2))
+        if d1 is None or d2 is None:
+            return None
+        return (d2 - d1).days
+
+    def days_since(column: str) -> int | None:
+        """返回从列日期到今天的天数差。"""
+        d = parse_datetime_value(row_values.get(column))
+        if d is None:
+            return None
+        return (today() - d).days
+
+    def year(column: str) -> int | None:
+        """提取列日期的年份。"""
+        d = parse_datetime_value(row_values.get(column))
+        return d.year if d is not None else None
+
+    def month(column: str) -> int | None:
+        """提取列日期的月份。"""
+        d = parse_datetime_value(row_values.get(column))
+        return d.month if d is not None else None
+
+    def day(column: str) -> int | None:
+        """提取列日期的日。"""
+        d = parse_datetime_value(row_values.get(column))
+        return d.day if d is not None else None
+
+    # --- 字符串增强 ---
+    def strip(column: str) -> str:
+        """获取列值并去除首尾空白。"""
+        return value_text(row_values.get(column)).strip()
+
+    def lower(column: str) -> str:
+        """获取列字符串值并转小写。"""
+        return text(column).lower()
+
+    def upper(column: str) -> str:
+        """获取列字符串值并转大写。"""
+        return text(column).upper()
+
+    def contains(column: str, substr: str) -> bool:
+        """检查列文本是否包含子串。"""
+        return substr in text(column)
+
+    def starts_with(column: str, prefix: str) -> bool:
+        """检查列文本是否以指定前缀开头。"""
+        return text(column).startswith(prefix)
+
+    def ends_with(column: str, suffix: str) -> bool:
+        """检查列文本是否以指定后缀结尾。"""
+        return text(column).endswith(suffix)
+
+    # --- 跨行引用 ---
+    def prev_value(column: str, default: Any = None) -> Any:
+        """获取上一行的列原始值。第一行返回 default。"""
+        if prev_row_values is None:
+            return default
+        return prev_row_values.get(column, default)
+
+    def prev_text(column: str, default: str = "") -> str:
+        """获取上一行的列字符串值。"""
+        if prev_row_values is None:
+            return default
+        v = prev_row_values.get(column, default)
+        return value_text(v).strip()
+
+    def prev_num(column: str) -> float | None:
+        """获取上一行的列数值。"""
+        if prev_row_values is None:
+            return None
+        return parse_number(prev_row_values.get(column))
+
+    # --- 多列聚合辅助 ---
+    def sum_cols(*cols: str) -> float | None:
+        """对多列的数值求和。任一列无法解析为数字时返回 None。"""
+        total = 0.0
+        for col in cols:
+            n = parse_number(row_values.get(col))
+            if n is None:
+                return None
+            total += n
+        return total
+
+    def coalesce(*cols: str) -> Any:
+        """返回多列中第一个非空值。"""
+        for col in cols:
+            v = row_values.get(col)
+            if not is_empty(v):
+                return v
+        return None
+
+    def in_list(val: Any, items: Any) -> bool:
+        """检查值是否在给定列表/元组中。"""
+        if isinstance(items, (list, tuple, set, frozenset)):
+            return val in items
+        return False
+
+    return {
         "row": row_values,
+        # 基础
         "value": value,
         "text": text,
         "num": num,
@@ -199,6 +334,30 @@ def safe_eval_row_expression(expr: str, row_values: dict[str, Any]) -> tuple[Any
         "empty": empty,
         "exists": exists,
         "match": match,
+        # 日期
+        "date_val": date_val,
+        "today": today,
+        "days_between": days_between,
+        "days_since": days_since,
+        "year": year,
+        "month": month,
+        "day": day,
+        # 字符串
+        "strip": strip,
+        "lower": lower,
+        "upper": upper,
+        "contains": contains,
+        "starts_with": starts_with,
+        "ends_with": ends_with,
+        # 跨行
+        "prev_value": prev_value,
+        "prev_text": prev_text,
+        "prev_num": prev_num,
+        # 多列
+        "sum_cols": sum_cols,
+        "coalesce": coalesce,
+        "in_list": in_list,
+        # 标量
         "len": len,
         "min": min,
         "max": max,
@@ -212,8 +371,32 @@ def safe_eval_row_expression(expr: str, row_values: dict[str, Any]) -> tuple[Any
         "False": False,
         "None": None,
     }
+
+
+def safe_eval_row_expression(
+    expr: str,
+    row_values: dict[str, Any],
+    *,
+    prev_row_values: dict[str, Any] | None = None,
+    compiled_code: Any | None = None,
+    prebuilt_env: dict[str, Any] | None = None,
+) -> tuple[Any | None, str | None]:
+    """安全执行行级表达式。
+
+    :param expr: 表达式字符串（仅在 compiled_code 为 None 时解析）。
+    :param row_values: 当前行的列值字典。
+    :param prev_row_values: 上一行的列值字典（可选，用于跨行引用）。
+    :param compiled_code: 预编译的 code 对象（可选，传入后忽略 expr 解析）。
+    :param prebuilt_env: 预构建的 eval 环境字典（可选，传入后跳过
+        _build_eval_env 调用，用于同一行多次求值时复用以提升性能）。
+    """
+    if compiled_code is None and len(expr) > MAX_EXPRESSION_LENGTH:
+        return None, f"表达式长度 {len(expr)} 超过限制 {MAX_EXPRESSION_LENGTH}"
+
+    env = prebuilt_env if prebuilt_env is not None else _build_eval_env(row_values, prev_row_values)
     try:
-        result = eval(expr, {"__builtins__": {}}, env)  # noqa: S307
+        code = compiled_code if compiled_code is not None else expr
+        result = eval(code, {"__builtins__": {}}, env)  # noqa: S307
     except Exception as exc:  # noqa: BLE001
         return None, str(exc)
     return result, None
@@ -229,7 +412,7 @@ def normalize_checks(rule: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(item, str):
                 checks.append({"type": item})
             elif isinstance(item, dict):
-                check_type = str(item.get("type") or item.get("check") or "").strip()
+                check_type = str(item.get("type") or "").strip()
                 if check_type:
                     x = dict(item)
                     x["type"] = check_type
@@ -664,14 +847,16 @@ def validate_range_rules(
     for idx, rule in enumerate(range_rules):
         if not isinstance(rule, dict):
             continue
+        if not rule.get("enabled", True):
+            continue
 
         dataset = str(rule.get("dataset", "")).strip()
         column = str(rule.get("column", "")).strip()
         rule_id = str(rule.get("rule_id", f"RANGE_RULE_{idx}"))
         severity = str(rule.get("severity", "error"))
         allow_empty = bool(rule.get("allow_empty", True))
-        include_min = bool(rule.get("include_min", rule.get("min_inclusive", True)))
-        include_max = bool(rule.get("include_max", rule.get("max_inclusive", True)))
+        include_min = bool(rule.get("include_min", True))
+        include_max = bool(rule.get("include_max", True))
         min_raw = rule.get("min")
         max_raw = rule.get("max")
         if not dataset or not column:
@@ -700,11 +885,9 @@ def validate_range_rules(
                 )
                 continue
 
-            # 从首个 chunk 获取 sample_value 用于类型推断
+            # 第一次遍历：仅获取 sample_value 用于类型推断
             sample_value = None
-            first_chunk = None
             for chunk in iter_rows_from_entry(entry):
-                first_chunk = chunk
                 for row_item in chunk:
                     if not isinstance(row_item, dict):
                         continue
@@ -715,7 +898,9 @@ def validate_range_rules(
                     if not is_empty(x):
                         sample_value = x
                         break
-                break
+                if sample_value is not None:
+                    break
+
             value_type = range_type_from_rule(rule, sample_value)
 
             min_parsed = parse_range_value(min_raw, value_type) if min_raw is not None else None
@@ -749,9 +934,9 @@ def validate_range_rules(
                 )
                 continue
 
-            # chunk 流式遍历行数据
-            def _check_range_rows(rows: list[dict[str, Any]]) -> None:
-                for row_item in rows:
+            # 第二次遍历：流式逐 chunk 执行范围校验（不全量收集）
+            for chunk in iter_rows_from_entry(entry):
+                for row_item in chunk:
                     if not isinstance(row_item, dict):
                         continue
                     row_num = int(row_item.get("row", 0) or 0)
@@ -827,14 +1012,6 @@ def validate_range_rules(
                                 expected=f"{comp} {value_text(max_raw)}",
                                 actual=value_text(raw_value),
                             )
-
-            # 处理首个 chunk（已读取用于 sample）然后继续后续 chunks
-            if first_chunk:
-                _check_range_rows(first_chunk)
-            for chunk in iter_rows_from_entry(entry):
-                if chunk is first_chunk:
-                    continue
-                _check_range_rows(chunk)
         except Exception as exc:  # noqa: BLE001
             issues.append(
                 make_exception_issue(
@@ -846,6 +1023,73 @@ def validate_range_rules(
                     context="range_rules 执行",
                 )
             )
+
+
+def _compile_branches(
+    branches: list[dict[str, Any]],
+    rule_id: str,
+    severity: str,
+    file_name: str,
+    sheet: str,
+    issues: list[dict[str, Any]],
+) -> list[dict[str, Any]] | None:
+    """预编译 branches 中所有 when/assert 表达式。
+
+    返回编译后的分支列表 [{compiled_when, compiled_assert, message, ...}]。
+    编译失败时向 issues 追加错误并返回 None。
+    """
+    compiled_branches: list[dict[str, Any]] = []
+    for bi, branch in enumerate(branches):
+        if not isinstance(branch, dict):
+            continue
+        b_when = str(branch.get("when", "")).strip()
+        b_assert = str(branch.get("assert", "")).strip()
+        b_message = str(branch.get("message", "")).strip()
+        if not b_assert:
+            continue
+
+        c_when = None
+        if b_when:
+            c_when, err = compile_row_expression(b_when)
+            if err:
+                append_value_check_issue(
+                    issues=issues,
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"branches[{bi}].when 表达式编译失败: {err}",
+                    file_name=file_name,
+                    sheet=sheet,
+                    row_num=0,
+                    column="",
+                    expected="合法表达式",
+                    actual=err,
+                )
+                return None
+
+        c_assert, err = compile_row_expression(b_assert)
+        if err:
+            append_value_check_issue(
+                issues=issues,
+                rule_id=rule_id,
+                severity=severity,
+                message=f"branches[{bi}].assert 表达式编译失败: {err}",
+                file_name=file_name,
+                sheet=sheet,
+                row_num=0,
+                column="",
+                expected="合法表达式",
+                actual=err,
+            )
+            return None
+
+        compiled_branches.append({
+            "compiled_when": c_when,
+            "when_expr": b_when,
+            "compiled_assert": c_assert,
+            "assert_expr": b_assert,
+            "message": b_message or f"分支[{bi}]校验未通过: {b_assert}",
+        })
+    return compiled_branches
 
 
 def validate_row_rules(
@@ -861,14 +1105,24 @@ def validate_row_rules(
     for idx, rule in enumerate(row_rules):
         if not isinstance(rule, dict):
             continue
+        if not rule.get("enabled", True):
+            continue
 
         dataset = str(rule.get("dataset", "")).strip()
         rule_id = str(rule.get("rule_id", f"ROW_RULE_{idx}"))
         severity = str(rule.get("severity", "error"))
+        if not dataset:
+            continue
+
+        # 判断是否为 branches 模式
+        branches_raw = rule.get("branches")
+        is_branches_mode = isinstance(branches_raw, list) and len(branches_raw) > 0
+
+        # 传统单表达式字段
         when_expr = str(rule.get("when", "")).strip()
-        assert_expr = str(rule.get("expression") or rule.get("assert") or "").strip()
-        message = str(rule.get("message", "")).strip() or f"行规则表达式未满足: {assert_expr}"
-        if not dataset or not assert_expr:
+        assert_expr = str(rule.get("assert", "")).strip()
+
+        if not is_branches_mode and not assert_expr:
             continue
 
         try:
@@ -879,73 +1133,292 @@ def validate_row_rules(
             file_name = str(entry.get("file", ""))
             sheet = str(entry.get("sheet", ""))
 
-            expression_error_reported = False
-            rule_aborted = False
-            for chunk in iter_rows_from_entry(entry):
-                if rule_aborted:
-                    break
-                for row_item in chunk:
-                    if not isinstance(row_item, dict):
+            if is_branches_mode:
+                # ---- branches 条件分支模式 ----
+                compiled_branches = _compile_branches(
+                    branches_raw, rule_id, severity, file_name, sheet, issues,
+                )
+                if compiled_branches is None:
+                    continue
+
+                # else_assert 编译
+                else_expr = str(rule.get("else_assert", "")).strip()
+                compiled_else = None
+                if else_expr:
+                    compiled_else, else_err = compile_row_expression(else_expr)
+                    if else_err:
+                        append_value_check_issue(
+                            issues=issues,
+                            rule_id=rule_id,
+                            severity=severity,
+                            message=f"else_assert 表达式编译失败: {else_err}",
+                            file_name=file_name,
+                            sheet=sheet,
+                            row_num=0,
+                            column="",
+                            expected="合法表达式",
+                            actual=else_err,
+                        )
                         continue
-                    row_num = int(row_item.get("row", 0) or 0)
-                    values = row_item.get("values", {})
-                    if not isinstance(values, dict):
+                else_message = str(rule.get("else_message", "")).strip() or f"else 分支校验未通过: {else_expr}"
+
+                expression_error_reported = False
+                rule_aborted = False
+                prev_row_values: dict[str, Any] | None = None
+
+                for chunk in iter_rows_from_entry(entry):
+                    if rule_aborted:
+                        break
+                    for row_item in chunk:
+                        if not isinstance(row_item, dict):
+                            continue
+                        row_num = int(row_item.get("row", 0) or 0)
+                        values = row_item.get("values", {})
+                        if not isinstance(values, dict):
+                            continue
+
+                        # 每行构建一次 env，所有 branch 评估复用
+                        row_env = _build_eval_env(values, prev_row_values)
+
+                        matched_branch = False
+                        for branch in compiled_branches:
+                            # 评估 when 条件
+                            if branch["compiled_when"] is not None:
+                                w_result, w_err = safe_eval_row_expression(
+                                    branch["when_expr"],
+                                    values,
+                                    prev_row_values=prev_row_values,
+                                    compiled_code=branch["compiled_when"],
+                                    prebuilt_env=row_env,
+                                )
+                                if w_err:
+                                    if not expression_error_reported:
+                                        append_value_check_issue(
+                                            issues=issues,
+                                            rule_id=rule_id,
+                                            severity=severity,
+                                            message="branches when 表达式执行失败",
+                                            file_name=file_name,
+                                            sheet=sheet,
+                                            row_num=row_num,
+                                            column="",
+                                            expected="合法表达式",
+                                            actual=w_err,
+                                        )
+                                        expression_error_reported = True
+                                    rule_aborted = True
+                                    break
+                                if not bool(w_result):
+                                    continue
+
+                            # when 匹配或无 when，执行 assert
+                            matched_branch = True
+                            a_result, a_err = safe_eval_row_expression(
+                                branch["assert_expr"],
+                                values,
+                                prev_row_values=prev_row_values,
+                                compiled_code=branch["compiled_assert"],
+                                prebuilt_env=row_env,
+                            )
+                            if a_err:
+                                if not expression_error_reported:
+                                    append_value_check_issue(
+                                        issues=issues,
+                                        rule_id=rule_id,
+                                        severity=severity,
+                                        message="branches assert 表达式执行失败",
+                                        file_name=file_name,
+                                        sheet=sheet,
+                                        row_num=row_num,
+                                        column="",
+                                        expected="合法表达式",
+                                        actual=a_err,
+                                    )
+                                    expression_error_reported = True
+                                rule_aborted = True
+                                break
+
+                            if not bool(a_result):
+                                append_value_check_issue(
+                                    issues=issues,
+                                    rule_id=rule_id,
+                                    severity=severity,
+                                    message=branch["message"],
+                                    file_name=file_name,
+                                    sheet=sheet,
+                                    row_num=row_num,
+                                    column=str(rule.get("column", "")),
+                                    expected="分支断言结果为 True",
+                                    actual="False",
+                                )
+                            break
+
+                        if rule_aborted:
+                            break
+
+                        # 无分支匹配时执行 else_assert
+                        if not matched_branch and compiled_else is not None:
+                            e_result, e_err = safe_eval_row_expression(
+                                else_expr,
+                                values,
+                                prev_row_values=prev_row_values,
+                                compiled_code=compiled_else,
+                                prebuilt_env=row_env,
+                            )
+                            if e_err:
+                                if not expression_error_reported:
+                                    append_value_check_issue(
+                                        issues=issues,
+                                        rule_id=rule_id,
+                                        severity=severity,
+                                        message="else_assert 表达式执行失败",
+                                        file_name=file_name,
+                                        sheet=sheet,
+                                        row_num=row_num,
+                                        column="",
+                                        expected="合法表达式",
+                                        actual=e_err,
+                                    )
+                                    expression_error_reported = True
+                                rule_aborted = True
+                                break
+
+                            if not bool(e_result):
+                                append_value_check_issue(
+                                    issues=issues,
+                                    rule_id=rule_id,
+                                    severity=severity,
+                                    message=else_message,
+                                    file_name=file_name,
+                                    sheet=sheet,
+                                    row_num=row_num,
+                                    column=str(rule.get("column", "")),
+                                    expected="else 断言结果为 True",
+                                    actual="False",
+                                )
+
+                        prev_row_values = values
+
+            else:
+                # ---- 传统单 when/assert 模式 ----
+                message = str(rule.get("message", "")).strip() or f"行规则表达式未满足: {assert_expr}"
+
+                compiled_when = None
+                if when_expr:
+                    compiled_when, when_compile_err = compile_row_expression(when_expr)
+                    if when_compile_err:
+                        append_value_check_issue(
+                            issues=issues,
+                            rule_id=rule_id,
+                            severity=severity,
+                            message=f"row_rules 的 when 表达式编译失败: {when_compile_err}",
+                            file_name=file_name,
+                            sheet=sheet,
+                            row_num=0,
+                            column="",
+                            expected="合法表达式",
+                            actual=when_compile_err,
+                        )
                         continue
 
-                    if when_expr:
-                        when_result, when_error = safe_eval_row_expression(when_expr, values)
-                        if when_error:
+                compiled_assert, assert_compile_err = compile_row_expression(assert_expr)
+                if assert_compile_err:
+                    append_value_check_issue(
+                        issues=issues,
+                        rule_id=rule_id,
+                        severity=severity,
+                        message=f"row_rules 的 expression/assert 表达式编译失败: {assert_compile_err}",
+                        file_name=file_name,
+                        sheet=sheet,
+                        row_num=0,
+                        column="",
+                        expected="合法表达式",
+                        actual=assert_compile_err,
+                    )
+                    continue
+
+                expression_error_reported = False
+                rule_aborted = False
+                prev_row_values: dict[str, Any] | None = None
+
+                for chunk in iter_rows_from_entry(entry):
+                    if rule_aborted:
+                        break
+                    for row_item in chunk:
+                        if not isinstance(row_item, dict):
+                            continue
+                        row_num = int(row_item.get("row", 0) or 0)
+                        values = row_item.get("values", {})
+                        if not isinstance(values, dict):
+                            continue
+
+                        if compiled_when is not None:
+                            when_result, when_error = safe_eval_row_expression(
+                                when_expr,
+                                values,
+                                prev_row_values=prev_row_values,
+                                compiled_code=compiled_when,
+                            )
+                            if when_error:
+                                if not expression_error_reported:
+                                    append_value_check_issue(
+                                        issues=issues,
+                                        rule_id=rule_id,
+                                        severity=severity,
+                                        message="row_rules 的 when 表达式执行失败",
+                                        file_name=file_name,
+                                        sheet=sheet,
+                                        row_num=row_num,
+                                        column="",
+                                        expected="合法表达式",
+                                        actual=when_error,
+                                    )
+                                    expression_error_reported = True
+                                rule_aborted = True
+                                break
+                            if not bool(when_result):
+                                prev_row_values = values
+                                continue
+
+                        result, err = safe_eval_row_expression(
+                            assert_expr,
+                            values,
+                            prev_row_values=prev_row_values,
+                            compiled_code=compiled_assert,
+                        )
+                        if err:
                             if not expression_error_reported:
                                 append_value_check_issue(
                                     issues=issues,
                                     rule_id=rule_id,
                                     severity=severity,
-                                    message="row_rules 的 when 表达式执行失败",
+                                    message="row_rules 的 expression/assert 表达式执行失败",
                                     file_name=file_name,
                                     sheet=sheet,
-                                    row_num=0,
+                                    row_num=row_num,
                                     column="",
                                     expected="合法表达式",
-                                    actual=when_error,
+                                    actual=err,
                                 )
                                 expression_error_reported = True
                             rule_aborted = True
                             break
-                        if not bool(when_result):
-                            continue
 
-                    result, err = safe_eval_row_expression(assert_expr, values)
-                    if err:
-                        if not expression_error_reported:
+                        if not bool(result):
                             append_value_check_issue(
                                 issues=issues,
                                 rule_id=rule_id,
                                 severity=severity,
-                                message="row_rules 的 expression/assert 表达式执行失败",
+                                message=message,
                                 file_name=file_name,
                                 sheet=sheet,
-                                row_num=0,
-                                column="",
-                                expected="合法表达式",
-                                actual=err,
+                                row_num=row_num,
+                                column=str(rule.get("column", "")),
+                                expected="表达式结果为 True",
+                                actual="False",
                             )
-                            expression_error_reported = True
-                        rule_aborted = True
-                        break
 
-                    if not bool(result):
-                        append_value_check_issue(
-                            issues=issues,
-                            rule_id=rule_id,
-                            severity=severity,
-                            message=message,
-                            file_name=file_name,
-                            sheet=sheet,
-                            row_num=row_num,
-                            column=str(rule.get("column", "")),
-                            expected="表达式结果为 True",
-                            actual="False",
-                        )
+                        prev_row_values = values
         except Exception as exc:  # noqa: BLE001
             issues.append(
                 make_exception_issue(
@@ -955,5 +1428,268 @@ def validate_row_rules(
                     file_name=str(dataset_sheet_lookup.get(dataset, {}).get("file", "")),
                     sheet=str(dataset_sheet_lookup.get(dataset, {}).get("sheet", "")),
                     context="row_rules 执行",
+                )
+            )
+
+
+AGGREGATE_FUNCTIONS = {"sum", "count", "avg", "min", "max", "distinct_count"}
+
+
+def _aggregate_column(
+    entry: dict[str, Any],
+    column: str,
+    func: str,
+    group_by: str,
+) -> dict[str, Any]:
+    """对数据集的指定列执行聚合运算。
+
+    返回 ``{"<group_key>": result, ...}``。
+    当 group_by 为空时，key 固定为 ``"__ALL__"``。
+    """
+    accumulators: dict[str, list[float]] = {}
+    distinct_sets: dict[str, set[str]] = {}
+    count_map: dict[str, int] = {}
+
+    for chunk in iter_rows_from_entry(entry):
+        for row_item in chunk:
+            if not isinstance(row_item, dict):
+                continue
+            values = row_item.get("values", {})
+            if not isinstance(values, dict):
+                continue
+
+            group_key = "__ALL__"
+            if group_by:
+                gv = values.get(group_by)
+                group_key = value_text(gv).strip() if not is_empty(gv) else "__EMPTY__"
+
+            raw_value = values.get(column)
+
+            if func == "count":
+                count_map[group_key] = count_map.get(group_key, 0) + (0 if is_empty(raw_value) else 1)
+                continue
+
+            if func == "distinct_count":
+                if group_key not in distinct_sets:
+                    distinct_sets[group_key] = set()
+                if not is_empty(raw_value):
+                    distinct_sets[group_key].add(value_text(raw_value).strip())
+                continue
+
+            # sum / avg / min / max — 需要数值
+            num_val = parse_number(raw_value)
+            if num_val is None:
+                continue
+            if group_key not in accumulators:
+                accumulators[group_key] = []
+            accumulators[group_key].append(num_val)
+
+    results: dict[str, Any] = {}
+    if func == "count":
+        for k, v in count_map.items():
+            results[k] = v
+    elif func == "distinct_count":
+        for k, v in distinct_sets.items():
+            results[k] = len(v)
+    elif func == "sum":
+        for k, vals in accumulators.items():
+            results[k] = sum(vals)
+    elif func == "avg":
+        for k, vals in accumulators.items():
+            results[k] = sum(vals) / len(vals) if vals else None
+    elif func == "min":
+        for k, vals in accumulators.items():
+            results[k] = min(vals) if vals else None
+    elif func == "max":
+        for k, vals in accumulators.items():
+            results[k] = max(vals) if vals else None
+
+    return results
+
+
+def validate_aggregate_rules(
+    *,
+    rules: dict[str, Any],
+    dataset_sheet_lookup: dict[str, dict[str, Any]],
+    issues: list[dict[str, Any]],
+) -> None:
+    """执行 aggregate_rules — 对数据集列进行聚合运算并断言。
+
+    规则格式示例::
+
+        {
+          "rule_id": "AGG_001",
+          "dataset": "orders",
+          "column": "金额",
+          "function": "sum",
+          "group_by": "部门",         // 可选
+          "assert": "result <= 1000000",
+          "message": "部门总金额不能超过100万",
+          "severity": "error"
+        }
+
+    支持的 function: sum, count, avg, min, max, distinct_count。
+    assert 表达式中可使用 ``result``（聚合值）和 ``group``（分组键）。
+    """
+    aggregate_rules = rules.get("aggregate_rules", [])
+    if not isinstance(aggregate_rules, list):
+        return
+
+    for idx, rule in enumerate(aggregate_rules):
+        if not isinstance(rule, dict):
+            continue
+        if not rule.get("enabled", True):
+            continue
+
+        dataset = str(rule.get("dataset", "")).strip()
+        column = str(rule.get("column", "")).strip()
+        func = str(rule.get("function", "")).strip().lower()
+        group_by = str(rule.get("group_by", "")).strip()
+        assert_expr = str(rule.get("assert", "")).strip()
+        rule_id = str(rule.get("rule_id", f"AGG_RULE_{idx}"))
+        severity = str(rule.get("severity", "error"))
+        message = str(rule.get("message", "")).strip()
+
+        if not dataset or not column or not func or not assert_expr:
+            continue
+
+        if func not in AGGREGATE_FUNCTIONS:
+            issues.append(
+                make_issue(
+                    category="local",
+                    rule_id=rule_id,
+                    severity="error",
+                    message=f"不支持的聚合函数 '{func}'",
+                    file_name="",
+                    sheet="",
+                    row=0,
+                    column=column,
+                    expected=f"支持的函数: {', '.join(sorted(AGGREGATE_FUNCTIONS))}",
+                    actual=func,
+                )
+            )
+            continue
+
+        try:
+            entry = dataset_sheet_lookup.get(dataset)
+            if not isinstance(entry, dict):
+                continue
+
+            file_name = str(entry.get("file", ""))
+            sheet = str(entry.get("sheet", ""))
+            headers = [str(h) for h in entry.get("headers", [])]
+
+            if column not in headers:
+                append_value_check_issue(
+                    issues=issues,
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"聚合校验依赖列 '{column}'，但工作表 '{sheet}' 中不存在该列",
+                    file_name=file_name,
+                    sheet=sheet,
+                    row_num=1,
+                    column=column,
+                    expected=f"列 '{column}' 存在",
+                    actual="列缺失",
+                )
+                continue
+
+            if group_by and group_by not in headers:
+                append_value_check_issue(
+                    issues=issues,
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"聚合校验分组列 '{group_by}'，但工作表 '{sheet}' 中不存在该列",
+                    file_name=file_name,
+                    sheet=sheet,
+                    row_num=1,
+                    column=group_by,
+                    expected=f"列 '{group_by}' 存在",
+                    actual="列缺失",
+                )
+                continue
+
+            # 预编译断言表达式
+            compiled_assert, compile_err = compile_row_expression(assert_expr)
+            if compile_err:
+                append_value_check_issue(
+                    issues=issues,
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"聚合规则 assert 表达式编译失败: {compile_err}",
+                    file_name=file_name,
+                    sheet=sheet,
+                    row_num=0,
+                    column=column,
+                    expected="合法表达式",
+                    actual=compile_err,
+                )
+                continue
+
+            # 执行聚合
+            group_results = _aggregate_column(entry, column, func, group_by)
+
+            # 对每个分组执行断言
+            for group_key, agg_result in group_results.items():
+                if agg_result is None:
+                    continue
+
+                env = {
+                    "result": agg_result,
+                    "group": group_key if group_key != "__ALL__" else "",
+                    "len": len,
+                    "min": min,
+                    "max": max,
+                    "abs": abs,
+                    "round": round,
+                    "str": _safe_str,
+                    "int": _safe_int,
+                    "float": _safe_float,
+                    "bool": bool,
+                    "True": True,
+                    "False": False,
+                    "None": None,
+                }
+                try:
+                    assert_result = eval(compiled_assert, {"__builtins__": {}}, env)  # noqa: S307
+                except Exception as exc:  # noqa: BLE001
+                    append_value_check_issue(
+                        issues=issues,
+                        rule_id=rule_id,
+                        severity=severity,
+                        message=f"聚合规则 assert 表达式执行失败: {exc}",
+                        file_name=file_name,
+                        sheet=sheet,
+                        row_num=0,
+                        column=column,
+                        expected="合法表达式",
+                        actual=str(exc),
+                    )
+                    break
+
+                if not bool(assert_result):
+                    group_display = f" (分组: {group_key})" if group_key != "__ALL__" else ""
+                    default_msg = f"聚合校验未通过{group_display}: {func}({column}) = {agg_result}"
+                    append_value_check_issue(
+                        issues=issues,
+                        rule_id=rule_id,
+                        severity=severity,
+                        message=message or default_msg,
+                        file_name=file_name,
+                        sheet=sheet,
+                        row_num=0,
+                        column=column,
+                        expected=f"assert: {assert_expr}",
+                        actual=f"{func}={agg_result}{group_display}",
+                    )
+        except Exception as exc:  # noqa: BLE001
+            issues.append(
+                make_exception_issue(
+                    category="local",
+                    rule_id=rule_id,
+                    exc=exc,
+                    file_name=str(dataset_sheet_lookup.get(dataset, {}).get("file", "")),
+                    sheet=str(dataset_sheet_lookup.get(dataset, {}).get("sheet", "")),
+                    context="aggregate_rules 执行",
                 )
             )

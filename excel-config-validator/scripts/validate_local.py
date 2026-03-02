@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso
 from local_rule_engine import (
     normalize_checks,
+    validate_aggregate_rules,
     validate_range_rules,
     validate_row_rules,
     validate_rule_on_rows,
@@ -87,6 +92,8 @@ def validate_schema_rules(
 
     for idx, rule in enumerate(schema_rules):
         if not isinstance(rule, dict):
+            continue
+        if not rule.get("enabled", True):
             continue
 
         dataset = str(rule.get("dataset", "")).strip()
@@ -165,6 +172,7 @@ def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> P
     validate_schema_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_range_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_row_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
+    validate_aggregate_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
 
     issues.sort(
         key=lambda x: (

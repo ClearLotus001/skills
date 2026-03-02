@@ -24,7 +24,6 @@ from common import (
     value_text,
 )
 
-# Re-export everything for backward compatibility
 __all__ = [
     "atomic_write_json",
     "canonical_key",

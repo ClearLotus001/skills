@@ -10,6 +10,9 @@ import json
 import sys
 from pathlib import Path
 
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 
 def inspect_xlsx(path: Path) -> dict:
     from openpyxl import load_workbook
@@ -37,14 +40,57 @@ def inspect_csv(path: Path) -> dict:
     return {"file": path.name, "type": "csv", "sheets": {sheet_name: {"headers": headers}}}
 
 
+def inspect_xls(path: Path) -> dict:
+    """使用 xlrd 探查 .xls 文件元数据。"""
+    try:
+        import xlrd  # type: ignore
+    except ImportError:
+        return {"file": path.name, "type": "xls", "error": "缺少 xlrd，无法解析 .xls"}
+
+    book = xlrd.open_workbook(path.as_posix(), on_demand=True)
+    try:
+        sheets = {}
+        for name in book.sheet_names():
+            sh = book.sheet_by_name(name)
+            headers = []
+            if sh.nrows > 0:
+                headers = [str(sh.cell_value(0, c)).strip() for c in range(sh.ncols)]
+            sheets[name] = {"headers": headers}
+    finally:
+        book.release_resources()
+    return {"file": path.name, "type": "xls", "sheets": sheets}
+
+
+def inspect_xlsb(path: Path) -> dict:
+    """使用 pyxlsb 探查 .xlsb 文件元数据。"""
+    try:
+        from pyxlsb import open_workbook  # type: ignore
+    except ImportError:
+        return {"file": path.name, "type": "xlsb", "error": "缺少 pyxlsb，无法解析 .xlsb"}
+
+    with open_workbook(path.as_posix()) as wb:
+        sheets = {}
+        for name in wb.sheets:
+            headers = []
+            with wb.get_sheet(name) as sh:
+                for row in sh.rows():
+                    headers = [str(c.v).strip() if c.v is not None else "" for c in row]
+                    break
+            sheets[name] = {"headers": headers}
+    return {"file": path.name, "type": "xlsb", "sheets": sheets}
+
+
 def inspect_file(path: Path) -> dict:
     ext = path.suffix.lower()
-    if ext in {".xlsx", ".xls", ".xlsm", ".xlsb"}:
+    if ext in {".xlsx", ".xlsm"}:
         return inspect_xlsx(path)
-    elif ext == ".csv":
+    if ext == ".xls":
+        return inspect_xls(path)
+    if ext == ".xlsb":
+        return inspect_xlsb(path)
+    if ext == ".csv":
         return inspect_csv(path)
-    else:
-        return {"file": path.name, "type": "unknown", "error": f"unsupported extension: {ext}"}
+    return {"file": path.name, "type": "unknown", "error": f"unsupported extension: {ext}"}
 
 
 def main() -> int:

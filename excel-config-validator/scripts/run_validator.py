@@ -8,9 +8,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+# 确保 scripts/ 目录在导入路径中，无论从哪个工作目录调用本脚本
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import severity_key
 
@@ -30,7 +34,7 @@ def utc_now_compact() -> str:
 def gate_failed(issues: list[dict[str, Any]], max_errors: int | None) -> bool:
     error_count = 0
     for issue in issues:
-        severity = issue.get("severity") or issue.get("severity_zh")
+        severity = issue.get("severity")
         if severity_key(severity) == "error":
             error_count += 1
     if max_errors is None:
@@ -49,12 +53,11 @@ def load_json(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def resolve_templates(base_dir: Path) -> tuple[Path, Path, Path]:
+def resolve_templates(base_dir: Path) -> tuple[Path, Path]:
     templates_dir = base_dir.parent / "assets" / "templates"
     return (
         templates_dir / "report.md",
         templates_dir / "report.html",
-        templates_dir / "message_i18n.json",
     )
 
 
@@ -205,7 +208,7 @@ def main() -> int:
 
         if not (args.resume and result_path.exists() and csv_path.exists() and md_path.exists() and html_path.exists()):
             mark_stage(state, "report")
-            md_template, html_template, i18n_template = resolve_templates(script_dir)
+            md_template, html_template = resolve_templates(script_dir)
             result_path, csv_path, md_path, html_path = render_report.render_reports(
                 out_dir=out_dir,
                 manifest_path=manifest_path,
@@ -213,7 +216,6 @@ def main() -> int:
                 issue_files=[local_path, relation_path, global_path],
                 md_template_path=md_template,
                 html_template_path=html_template,
-                i18n_path=i18n_template,
             )
             save_state(state_path, state)
 

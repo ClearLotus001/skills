@@ -11,11 +11,15 @@ import csv
 import fnmatch
 import hashlib
 import json
+import sys
 import warnings
 from datetime import date, datetime, time, timezone
 from pathlib import Path
 from typing import Any
 from zipfile import ZipFile
+
+# 确保 scripts/ 目录在导入路径中
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, dataset_configs, file_sha256, normalize_path_text, utc_now_iso
 
@@ -98,10 +102,10 @@ def build_projection_plan(compiled_rules_path: Path | None) -> list[dict[str, An
         for item in relation_rules:
             if not isinstance(item, dict):
                 continue
-            source_ds = str(item.get("source_dataset") or item.get("from_dataset") or "").strip()
-            target_ds = str(item.get("target_dataset") or item.get("to_dataset") or "").strip()
-            source_key = str(item.get("source_key") or item.get("from_key") or "").strip()
-            target_key = str(item.get("target_key") or item.get("to_key") or "").strip()
+            source_ds = str(item.get("source_dataset") or "").strip()
+            target_ds = str(item.get("target_dataset") or "").strip()
+            source_key = str(item.get("source_key") or "").strip()
+            target_key = str(item.get("target_key") or "").strip()
             if source_ds and source_ds in ds_columns and source_key:
                 ds_columns[source_ds].add(source_key)
             if target_ds and target_ds in ds_columns and target_key:
@@ -273,7 +277,7 @@ def read_csv_rows(path: Path, encoding: str) -> tuple[list[str], list[dict[str, 
 
 
 def parse_csv_headers(path: Path) -> tuple[list[str], list[dict[str, Any]], list[str], list[str]]:
-    warnings: list[str] = []
+    parse_warnings: list[str] = []
     notes: list[str] = []
     encodings = ("utf-8-sig", "gb18030", "utf-16")
     headers: list[str] = []
@@ -290,20 +294,20 @@ def parse_csv_headers(path: Path) -> tuple[list[str], list[dict[str, Any]], list
             last_error = str(exc)
             continue
         except Exception as exc:  # noqa: BLE001
-            warnings.append(f"CSV 解析失败：{exc}")
-            return [], [], warnings, notes
+            parse_warnings.append(f"CSV 解析失败：{exc}")
+            return [], [], parse_warnings, notes
 
     if not used_encoding:
-        warnings.append(
+        parse_warnings.append(
             "CSV 编码无法识别（已尝试 UTF-8/GB18030/UTF-16）"
             + (f"：{last_error}" if last_error else "")
         )
-        return [], [], warnings, notes
+        return [], [], parse_warnings, notes
     if used_encoding != "utf-8-sig":
         notes.append(f"CSV 非 UTF-8 编码，已自动按 {used_encoding} 读取")
     if not headers:
-        warnings.append("CSV 为空或缺少表头行")
-    return headers, rows, warnings, notes
+        parse_warnings.append("CSV 为空或缺少表头行")
+    return headers, rows, parse_warnings, notes
 
 
 def parse_xlsx_like(path: Path, data_only: bool) -> tuple[list[dict[str, Any]], list[str], list[str]]:
@@ -360,7 +364,7 @@ def parse_xlsx_like(path: Path, data_only: bool) -> tuple[list[dict[str, Any]], 
 
 def parse_xls(path: Path) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     sheets: list[dict[str, Any]] = []
-    warnings: list[str] = []
+    parse_warnings: list[str] = []
     notes: list[str] = []
     try:
         import xlrd  # type: ignore
@@ -388,12 +392,12 @@ def parse_xls(path: Path) -> tuple[list[dict[str, Any]], list[str], list[str]]:
             )
     finally:
         book.release_resources()
-    return sheets, warnings, notes
+    return sheets, parse_warnings, notes
 
 
 def parse_xlsb(path: Path) -> tuple[list[dict[str, Any]], list[str], list[str]]:
     sheets: list[dict[str, Any]] = []
-    warnings: list[str] = []
+    parse_warnings: list[str] = []
     notes: list[str] = []
     try:
         from pyxlsb import open_workbook  # type: ignore
@@ -419,7 +423,7 @@ def parse_xlsb(path: Path) -> tuple[list[dict[str, Any]], list[str], list[str]]:
                     "rows": rows,
                 }
             )
-    return sheets, warnings, notes
+    return sheets, parse_warnings, notes
 
 
 def parse_file(path: Path, data_only: bool) -> tuple[list[dict[str, Any]], list[str], list[str]]:
