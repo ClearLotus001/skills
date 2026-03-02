@@ -2,7 +2,7 @@
 
 这是校验引擎的唯一执行入口。支持断点恢复（--resume）和质量门禁（--max-errors）。
 输入: Excel/CSV 文件 + rules.json
-输出: 完整校验输出（result.json、issues.csv、report.md、report.html 等）
+输出: 完整校验输出（result.json、issues.csv、report.html 等）
 """
 from __future__ import annotations
 
@@ -54,12 +54,9 @@ def load_json(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def resolve_templates(base_dir: Path) -> tuple[Path, Path]:
+def resolve_templates(base_dir: Path) -> Path:
     templates_dir = base_dir.parent / "assets" / "templates"
-    return (
-        templates_dir / "report.md",
-        templates_dir / "report.html",
-    )
+    return templates_dir / "report.html"
 
 
 def scan_inputs(inputs: Path, out_dir: Path) -> int:
@@ -235,7 +232,6 @@ def main() -> int:
         global_path = stages_dir / "global_issues.json"
         result_path = out_dir / "result.json"
         csv_path = out_dir / "issues.csv"
-        md_path = out_dir / "report.md"
         html_path = out_dir / "report.html"
 
         stage_exceptions: list[dict[str, str]] = []
@@ -299,22 +295,20 @@ def main() -> int:
                 _write_empty_issues(global_path, "global", "全局校验")
             save_state(state_path, state)
 
-        if not (args.resume and result_path.exists() and csv_path.exists() and md_path.exists() and html_path.exists()):
+        if not (args.resume and result_path.exists() and csv_path.exists() and html_path.exists()):
             mark_stage(state, "report")
-            md_template, html_template = resolve_templates(script_dir)
-            result_path, csv_path, md_path, html_path = render_report.render_reports(
+            html_template = resolve_templates(script_dir)
+            result_path, csv_path, html_path = render_report.render_reports(
                 out_dir=out_dir,
                 manifest_path=manifest_path,
                 compiled_rules_path=compiled_path,
                 issue_files=[local_path, relation_path, global_path],
-                md_template_path=md_template,
                 html_template_path=html_template,
             )
             save_state(state_path, state)
 
         state.metadata["result_json"] = result_path.as_posix()
         state.metadata["issues_csv"] = csv_path.as_posix()
-        state.metadata["report_md"] = md_path.as_posix()
         state.metadata["report_html"] = html_path.as_posix()
         if stage_exceptions:
             state.metadata["stage_exceptions"] = stage_exceptions

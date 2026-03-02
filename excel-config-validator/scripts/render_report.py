@@ -1,8 +1,8 @@
-"""报告渲染 — 合并各阶段 issues 并生成 JSON/CSV/Markdown/HTML 报告。
+"""报告渲染 — 合并各阶段 issues 并生成 JSON/CSV/HTML 报告。
 
 由 run_validator.py 内部调用，也可独立执行。
 输入: ingest_manifest.json、compiled_rules.json、*_issues.json
-输出: result.json、issues.csv、report.md、report.html
+输出: result.json、issues.csv、report.html
 """
 from __future__ import annotations
 
@@ -319,15 +319,6 @@ def summarize_input_files(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def sheet_rows_text(sheets: list[dict[str, Any]]) -> str:
-    parts: list[str] = []
-    for s in sheets:
-        if not isinstance(s, dict):
-            continue
-        parts.append(f"{s.get('sheet', '-')}:约{s.get('row_count_estimate', 0)}行")
-    return ", ".join(parts)
-
-
 def enrich_issues_with_rule_info(
     issues: list[dict[str, Any]],
     catalog_by_id: dict[str, dict[str, Any]],
@@ -492,29 +483,6 @@ def render_template(template: str, values: dict[str, str]) -> str:
     return output
 
 
-def default_md_template() -> str:
-    return (
-        "# {{title}}\n\n"
-        "## 报告概览\n\n"
-        "- 生成时间：{{generated_at}}\n"
-        "- 问题总数：{{total_issues}}\n\n"
-        "## 输入文件\n\n"
-        "{{input_files}}\n\n"
-        "## 检查规则目录\n\n"
-        "{{rule_catalog}}\n\n"
-        "## 严重级别统计\n\n"
-        "{{severity_counts}}\n\n"
-        "## 问题类别统计\n\n"
-        "{{category_counts}}\n\n"
-        "## 高频规则\n\n"
-        "{{top_rules}}\n\n"
-        "## 文件/页签分组（Top 30）\n\n"
-        "{{file_sheet_groups}}\n\n"
-        "## 问题明细（最多展示 500 条）\n\n"
-        "{{issues_table}}\n"
-    )
-
-
 def default_html_template() -> str:
     return """<!doctype html>
 <html lang="zh-CN">
@@ -579,9 +547,8 @@ def render_reports(
     manifest_path: Path,
     compiled_rules_path: Path,
     issue_files: list[Path],
-    md_template_path: Path | None = None,
     html_template_path: Path | None = None,
-) -> tuple[Path, Path, Path, Path]:
+) -> tuple[Path, Path, Path]:
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     compiled_rules = json.loads(compiled_rules_path.read_text(encoding="utf-8"))
@@ -620,99 +587,10 @@ def render_reports(
 
     result_json_path = out_dir / "result.json"
     issues_csv_path = out_dir / "issues.csv"
-    report_md_path = out_dir / "report.md"
     report_html_path = out_dir / "report.html"
 
     atomic_write_json(result_json_path, result_payload)
     write_issues_csv(issues_csv_path, issues)
-
-    ordered_severity = sorted(summary["severity_counts"].items(), key=lambda x: severity_rank(x[0]))
-    severity_lines = "\n".join(f"- {severity_label_zh(k)}: {v}" for k, v in ordered_severity) or "- 无"
-    top_rule_lines = "\n".join(
-        f"- {x['rule_id']}（{rule_catalog_by_id.get(x['rule_id'], {}).get('rule_title', x['rule_id'])}）：{x['count']}"
-        for x in summary.get("top_rules", [])
-    ) or "- 无"
-    ordered_category = sorted(summary["category_counts"].items(), key=lambda x: (-x[1], x[0]))
-    category_lines = "\n".join(f"- {category_label_zh(k)}: {v}" for k, v in ordered_category) or "- 无"
-    file_sheet_group_lines = "\n".join(
-        (
-            f"- {x.get('file', '-')}/{x.get('sheet', '-')}: {x.get('count', 0)}"
-            + (
-                f"（{', '.join(f'{k}:{v}' for k, v in (x.get('category_counts_zh') or {}).items())}）"
-                if isinstance(x.get("category_counts_zh"), dict) and x.get("category_counts_zh")
-                else ""
-            )
-        )
-        for x in summary.get("by_file_sheet", [])[:30]
-    ) or "- 无"
-    input_file_lines = "\n".join(
-        (
-            f"- {x.get('name', '-')}"
-            + (f" `sha256:{x.get('sha256', '')[:12]}…`" if x.get("sha256") else "")
-            + f": {x.get('sheet_count', 0)} 个工作表"
-            + (
-                f"（{sheet_rows_text(x.get('sheets') or [])}）"
-                if isinstance(x.get("sheets"), list) and x.get("sheets")
-                else ""
-            )
-            + (
-                f"；解析告警 {len(x.get('parse_warnings') or [])} 条"
-                if isinstance(x.get("parse_warnings"), list) and x.get("parse_warnings")
-                else ""
-            )
-            + (
-                f"；解析说明 {len(x.get('parse_notes') or [])} 条"
-                if isinstance(x.get("parse_notes"), list) and x.get("parse_notes")
-                else ""
-            )
-        )
-        for x in input_files
-    ) or "- 无"
-    rule_catalog_lines = "\n".join(
-        (
-            f"- [{x.get('rule_group_zh', '规则')}] {x.get('rule_id', '-')}: {x.get('rule_title', '-')}"
-            + (f"；{x.get('rule_desc', '')}" if x.get("rule_desc") else "")
-        )
-        for x in rule_catalog[:80]
-    ) or "- 无"
-
-    md_issue_table_lines = [
-        "| 严重级别 | 问题类别 | 规则ID | 规则名称 | 问题描述 | 文件 | 工作表 | 行 | 列 |",
-        "|---|---|---|---|---|---|---|---:|---|",
-    ]
-    for issue in issues[:500]:
-        md_issue_table_lines.append(
-            "| {severity} | {category} | {rule_id} | {rule_title} | {message} | {file} | {sheet} | {row} | {column} |".format(
-                severity=severity_label_zh(issue.get("severity")),
-                category=category_label_zh(issue.get("category")),
-                rule_id=str(issue.get("rule_id", "")).replace("|", "\\|"),
-                rule_title=str(issue.get("rule_title", "")).replace("|", "\\|"),
-                message=str(issue.get("message_zh", "")).replace("|", "\\|"),
-                file=str(issue.get("file", "")).replace("|", "\\|"),
-                sheet=str(issue.get("sheet", "")).replace("|", "\\|"),
-                row=issue.get("row", ""),
-                column=str(issue.get("column", "")).replace("|", "\\|"),
-            )
-        )
-
-    md_values = {
-        "title": "Excel 配置校验报告",
-        "generated_at": generated_at_display,
-        "total_issues": str(summary["total_issues"]),
-        "input_files": input_file_lines,
-        "rule_catalog": rule_catalog_lines,
-        "severity_counts": severity_lines,
-        "category_counts": category_lines,
-        "top_rules": top_rule_lines,
-        "file_sheet_groups": file_sheet_group_lines,
-        "issues_table": "\n".join(md_issue_table_lines),
-    }
-    md_template = (
-        md_template_path.read_text(encoding="utf-8")
-        if md_template_path and md_template_path.exists()
-        else default_md_template()
-    )
-    atomic_write_text(report_md_path, render_template(md_template, md_values))
 
     html_values = {
         "title": "Excel 配置校验报告",
@@ -733,16 +611,15 @@ def render_reports(
     )
     atomic_write_text(report_html_path, render_template(html_template, html_values))
 
-    return result_json_path, issues_csv_path, report_md_path, report_html_path
+    return result_json_path, issues_csv_path, report_html_path
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="渲染 JSON/CSV/Markdown/HTML 报告。")
+    parser = argparse.ArgumentParser(description="渲染 JSON/CSV/HTML 报告。")
     parser.add_argument("--out", required=True, help="输出目录")
     parser.add_argument("--manifest", required=True, help="ingest_manifest.json 路径")
     parser.add_argument("--compiled-rules", required=True, help="compiled_rules.json 路径")
     parser.add_argument("--issue-files", nargs="+", required=True, help="issue JSON 文件列表")
-    parser.add_argument("--md-template", default=None, help="可选：Markdown 模板路径")
     parser.add_argument("--html-template", default=None, help="可选：HTML 模板路径")
     return parser
 
@@ -753,16 +630,14 @@ def main() -> int:
     manifest_path = Path(args.manifest).resolve()
     compiled_rules_path = Path(args.compiled_rules).resolve()
     issue_files = [Path(x).resolve() for x in args.issue_files]
-    md_template_path = Path(args.md_template).resolve() if args.md_template else None
     html_template_path = Path(args.html_template).resolve() if args.html_template else None
 
     try:
-        result_json_path, issues_csv_path, report_md_path, report_html_path = render_reports(
+        result_json_path, issues_csv_path, report_html_path = render_reports(
             out_dir=out_dir,
             manifest_path=manifest_path,
             compiled_rules_path=compiled_rules_path,
             issue_files=issue_files,
-            md_template_path=md_template_path,
             html_template_path=html_template_path,
         )
     except Exception as exc:  # noqa: BLE001
@@ -771,7 +646,6 @@ def main() -> int:
 
     print(f"[成功] result.json：{result_json_path}")
     print(f"[成功] issues.csv：{issues_csv_path}")
-    print(f"[成功] report.md：{report_md_path}")
     print(f"[成功] report.html：{report_html_path}")
     return 0
 
