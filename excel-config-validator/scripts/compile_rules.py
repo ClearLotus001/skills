@@ -27,6 +27,12 @@ RULE_KEYS = (
     "global_rules",
 )
 
+SUPPORTED_CHECK_TYPES = {
+    "required", "string", "numeric", "min_digits", "increasing", "unique",
+    "date", "datetime_format", "max_length", "min_length", "regex",
+    "enum", "whitelist", "positive", "non_negative", "conditional_required",
+}
+
 
 def dataset_ids_from_rules(rules: dict[str, Any]) -> set[str]:
     datasets = rules.get("datasets", {})
@@ -55,6 +61,28 @@ def extract_dataset_ref(rule: dict[str, Any]) -> str | None:
     return str(ds)
 
 
+def _validate_schema_check_types(rule: dict[str, Any], idx: int, errors: list[str]) -> None:
+    """校验 schema_rules 中的 check type 是否为已支持类型。"""
+    # 单 check 格式
+    check = str(rule.get("check", "")).strip().lower()
+    if check and check not in SUPPORTED_CHECK_TYPES:
+        rid = rule.get("rule_id", f"schema_rules[{idx}]")
+        errors.append(f"schema_rules '{rid}' 的 check 类型 '{check}' 不受支持，"
+                       f"可用类型：{', '.join(sorted(SUPPORTED_CHECK_TYPES))}")
+    # 多 checks 格式
+    checks = rule.get("checks")
+    if isinstance(checks, list):
+        for ci, c in enumerate(checks):
+            ct = ""
+            if isinstance(c, str):
+                ct = c.strip().lower()
+            elif isinstance(c, dict):
+                ct = str(c.get("type", "")).strip().lower()
+            if ct and ct not in SUPPORTED_CHECK_TYPES:
+                rid = rule.get("rule_id", f"schema_rules[{idx}]")
+                errors.append(f"schema_rules '{rid}' 的 checks[{ci}] 类型 '{ct}' 不受支持")
+
+
 def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
     errors: list[str] = []
     if not isinstance(rules, dict):
@@ -81,6 +109,10 @@ def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
             ds = extract_dataset_ref(item)
             if ds and ds not in datasets:
                 errors.append(f"{group_key}[{idx}] 引用了未知数据集 '{ds}'")
+
+            # schema_rules: 校验 check type 是否已支持
+            if group_key == "schema_rules":
+                _validate_schema_check_types(item, idx, errors)
 
     relation_rules = rules.get("relation_rules", [])
     if isinstance(relation_rules, list):

@@ -21,7 +21,11 @@
       "Bash(PYTHONIOENCODING=utf-8 python scripts/run_validator.py --inputs \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\" --rules \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\rules.json\" --out \"C:\\\\Users\\\\15095\\\\Desktop\\\\Test\\\\output\" --allow-parser-warning)",
       "Bash(PYTHONIOENCODING=utf-8 python -c \":*)",
       "Bash(PYTHONIOENCODING=utf-8 python excel-config-validator/scripts/run_validator.py /c/Users/15095/Desktop/Test --out /c/Users/15095/Desktop/Test/output)",
-      "Bash(PYTHONIOENCODING=utf-8 python excel-config-validator/scripts/run_validator.py --inputs /c/Users/15095/Desktop/Test --rules /c/Users/15095/Desktop/Test/rules.json --out /c/Users/15095/Desktop/Test/output)"
+      "Bash(PYTHONIOENCODING=utf-8 python excel-config-validator/scripts/run_validator.py --inputs /c/Users/15095/Desktop/Test --rules /c/Users/15095/Desktop/Test/rules.json --out /c/Users/15095/Desktop/Test/output)",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''scripts/validate_relations.py'', doraise=True\\); print\\(''validate_relations.py OK''\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''scripts/validate_global.py'', doraise=True\\); print\\(''validate_global.py OK''\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''scripts/validation_common.py'', doraise=True\\); print\\(''validation_common.py OK''\\)\")",
+      "Bash(python -c \"import py_compile; py_compile.compile\\(''scripts/local_rule_engine.py'', doraise=True\\); print\\(''local_rule_engine.py OK''\\)\")"
     ]
   }
 }

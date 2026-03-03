@@ -31,6 +31,22 @@ IGNORED_ARTIFACT_NAMES = {
 }
 
 
+def detect_duplicate_headers(headers: list[str]) -> list[str]:
+    """检测重复列名，返回警告列表。"""
+    if not headers:
+        return []
+    seen: dict[str, int] = {}
+    for h in headers:
+        if not h:
+            continue
+        seen[h] = seen.get(h, 0) + 1
+    dups = {k: v for k, v in seen.items() if v > 1}
+    if not dups:
+        return []
+    parts = [f"'{k}'({v}次)" for k, v in sorted(dups.items())]
+    return [f"检测到重复列名：{', '.join(parts)}。重复列可能导致数据覆盖，建议修复源文件"]
+
+
 def discover_input_files(inputs: Path) -> list[Path]:
     if inputs.is_file():
         ext = inputs.suffix.lower()
@@ -482,6 +498,11 @@ def build_manifest(
         for sheet in sheets:
             sheet_name = str(sheet.get("sheet", ""))
             headers = [str(x) for x in (sheet.get("headers", []) or [])]
+            # 检测重复列名
+            dup_warnings = detect_duplicate_headers(headers)
+            if dup_warnings:
+                warnings.extend(f"[{file_path.name}/{sheet_name}] {w}" for w in dup_warnings)
+                parser_warning_count += len(dup_warnings)
             rows = sheet.get("rows", [])
             if not isinstance(rows, list):
                 rows = []

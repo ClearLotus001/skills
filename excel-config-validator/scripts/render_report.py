@@ -592,6 +592,13 @@ def render_reports(
     atomic_write_json(result_json_path, result_payload)
     write_issues_csv(issues_csv_path, issues)
 
+    raw_rules = compiled_rules.get("rules", {})
+    ds_cfg = dataset_configs(raw_rules) if isinstance(raw_rules, dict) else {}
+    rule_sheets = []
+    for ds_key, ds_val in ds_cfg.items():
+        if isinstance(ds_val, dict) and ds_val.get("file") and ds_val.get("sheet"):
+            rule_sheets.append({"file": str(ds_val["file"]), "sheet": str(ds_val["sheet"])})
+
     html_values = {
         "title": "Excel 配置校验报告",
         "generated_at": generated_at_display,
@@ -603,6 +610,7 @@ def render_reports(
         "issues_json": json.dumps(issues, ensure_ascii=False),
         "inputs_json": json.dumps(input_files, ensure_ascii=False),
         "rule_catalog_json": json.dumps(rule_catalog, ensure_ascii=False),
+        "rule_sheets_json": json.dumps(rule_sheets, ensure_ascii=False),
     }
     html_template = (
         html_template_path.read_text(encoding="utf-8")

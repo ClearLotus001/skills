@@ -57,7 +57,7 @@ def parse_number(value: Any) -> float | None:
         text = value.strip()
         if not text:
             return None
-        if re.fullmatch(r"[+-]?\d+(\.\d+)?", text):
+        if re.fullmatch(r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?", text):
             try:
                 return float(text)
             except ValueError:

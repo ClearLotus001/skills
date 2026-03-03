@@ -419,8 +419,8 @@ def normalize_checks(rule: dict[str, Any]) -> list[dict[str, Any]]:
                     checks.append(x)
 
     single_check = str(rule.get("check", "")).strip()
-    if single_check:
-        meta_keys = {"rule_id", "dataset", "column", "severity", "check", "checks", "message"}
+    if single_check and not checks:
+        meta_keys = {"rule_id", "dataset", "column", "severity", "check", "checks", "message", "enabled"}
         params = {k: v for k, v in rule.items() if k not in meta_keys}
         checks.append({"type": single_check, **params})
     return checks

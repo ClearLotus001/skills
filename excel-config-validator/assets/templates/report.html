@@ -4,1379 +4,279 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{title}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"IBM Plex Sans"', '"Noto Sans SC"', 'system-ui', 'sans-serif'],
+            body: ['"Noto Sans SC"', '"IBM Plex Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', '"Cascadia Code"', 'Consolas', 'monospace'],
+          },
+          colors: {
+            slate: {
+              925: '#0B1120',
+            },
+            brand: {
+              50: '#f0f5ff',
+              100: '#e0eaff',
+              200: '#c2d5ff',
+              300: '#8fb0ff',
+              400: '#5a85ff',
+              500: '#3366ff',
+              600: '#1a4dff',
+              700: '#0033e6',
+              800: '#0029b3',
+              900: '#001f80',
+            },
+            sev: {
+              error: '#ef4444',
+              'error-bg': '#fef2f2',
+              'error-border': '#fecaca',
+              warn: '#f59e0b',
+              'warn-bg': '#fffbeb',
+              'warn-border': '#fde68a',
+              info: '#6366f1',
+              'info-bg': '#eef2ff',
+              'info-border': '#c7d2fe',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=LXGW+WenKai:wght@400;700&display=swap');
-
-    :root {
-      --forest: #2D5016;
-      --forest-light: #3A6B1E;
-      --sage: #7C9A5E;
-      --sage-light: #9DB87E;
-      --moss: #8B9E6B;
-      --moss-pale: rgba(139, 158, 107, 0.12);
-      --bark: #5C4033;
-      --bark-light: #7A5C4A;
-      --cream: #FAF8F0;
-      --parchment: #F5F1E6;
-      --ivory: #FFFDF5;
-      --ink: #2C3E2D;
-      --ink-light: #556B52;
-      --muted: #7A8B6E;
-      --line: rgba(92, 64, 51, 0.12);
-      --line-strong: rgba(92, 64, 51, 0.22);
-      --error: #8B3A2A;
-      --error-bg: rgba(139, 58, 42, 0.10);
-      --error-border: rgba(139, 58, 42, 0.25);
-      --warn: #8B6914;
-      --warn-bg: rgba(139, 105, 20, 0.10);
-      --warn-border: rgba(139, 105, 20, 0.25);
-      --info: #2A6B5A;
-      --info-bg: rgba(42, 107, 90, 0.10);
-      --info-border: rgba(42, 107, 90, 0.25);
-      --radius: 8px;
-      --radius-lg: 12px;
-      --shadow-sm: 0 1px 3px rgba(44, 62, 45, 0.06);
-      --shadow: 0 4px 16px rgba(44, 62, 45, 0.08);
-      --shadow-lg: 0 8px 32px rgba(44, 62, 45, 0.10);
-      --font-display: "Noto Serif SC", "STZhongsong", "Songti SC", "SimSun", serif;
-      --font-body: "LXGW WenKai", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
-      --font-mono: "JetBrains Mono", "Cascadia Code", "Fira Code", Consolas, monospace;
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; }
-
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
+    html, body { height: 100%; overflow: hidden; }
 
     body {
-      font-family: var(--font-body);
-      font-size: 13px;
-      color: var(--ink);
-      background: var(--cream);
-      background-image:
-        radial-gradient(ellipse at 0% 0%, rgba(45, 80, 22, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse at 100% 100%, rgba(92, 64, 51, 0.05) 0%, transparent 50%),
-        url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='60' height='60' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+      font-family: "Noto Sans SC", "IBM Plex Sans", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    /* ── App shell: fixed 100vh grid ── */
-    .app {
-      height: 100vh;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 6px;
-      padding: 12px 16px;
-    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-track { background: transparent; }
+    * { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.12) transparent; }
 
-    /* ── Hero / Header ── */
-    .hero {
-      background: var(--ivory);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      padding: 14px 20px;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
+    [hidden] { display: none !important; }
 
-    .hero-left {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      min-width: 0;
-      flex: 1 1 0;
-      overflow: hidden;
-    }
-
-    .hero-left > div {
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .hero-icon {
-      flex-shrink: 0;
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: linear-gradient(135deg, var(--forest), var(--sage));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(45, 80, 22, 0.2);
-    }
-
-    .hero-icon svg { width: 20px; height: 20px; }
-
-    .hero h1 {
-      font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--forest);
-      line-height: 1.3;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .hero-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    .hero-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      background: var(--moss-pale);
-      border: 1px solid rgba(139, 158, 107, 0.2);
-      font-size: 11px;
-      color: var(--ink-light);
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    /* ── Stats bar ── */
-    .stats-bar {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      flex-shrink: 0;
-    }
-
-    .stat-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      white-space: nowrap;
-      border: 1px solid transparent;
-    }
-
-    .stat-chip.total {
-      background: rgba(45, 80, 22, 0.08);
-      border-color: rgba(45, 80, 22, 0.15);
-      color: var(--forest);
-    }
-
-    .stat-chip.error {
-      background: var(--error-bg);
-      border-color: var(--error-border);
-      color: var(--error);
-    }
-
-    .stat-chip.warn {
-      background: var(--warn-bg);
-      border-color: var(--warn-border);
-      color: var(--warn);
-    }
-
-    .stat-chip.info {
-      background: var(--info-bg);
-      border-color: var(--info-border);
-      color: var(--info);
-    }
-
-    .stat-chip .stat-num {
-      font-size: 14px;
-      font-weight: 800;
-      font-family: var(--font-mono);
-    }
-
-    /* ── Workspace ── */
-    .workspace {
-      min-height: 0;
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 6px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      background: var(--ivory);
-      box-shadow: var(--shadow);
-    }
-
-    /* ── Sidebar ── */
-    .sidebar {
-      min-height: 0;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--sage-light) transparent;
-      background:
-        linear-gradient(180deg, rgba(245, 241, 230, 0.5) 0%, rgba(250, 248, 240, 0.3) 100%),
-        var(--parchment);
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .sidebar::-webkit-scrollbar { width: 4px; }
-    .sidebar::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
-    .sidebar::-webkit-scrollbar-track { background: transparent; }
-
-    .block {
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      background: rgba(255, 253, 245, 0.8);
-      overflow: hidden;
-    }
-
-    .block-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 10px;
-      cursor: default;
-      user-select: none;
-      border-bottom: 1px solid transparent;
-      transition: border-color 150ms;
-    }
-
-    .block-head.collapsible {
-      cursor: pointer;
-    }
-
-    .block-head.collapsible:hover {
-      background: rgba(139, 158, 107, 0.06);
-    }
-
-    .block-head h2 {
-      font-family: var(--font-display);
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--bark);
-      letter-spacing: 0.02em;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .block-head h2::before {
-      content: "";
-      display: inline-block;
-      width: 3px;
-      height: 12px;
-      border-radius: 2px;
-      background: linear-gradient(180deg, var(--sage), var(--forest));
-      flex-shrink: 0;
-    }
-
-    .block-head .toggle-icon {
-      width: 16px;
-      height: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      color: var(--muted);
-      font-size: 10px;
-      transition: transform 200ms ease;
-    }
-
-    .block.collapsed .toggle-icon {
-      transform: rotate(-90deg);
-    }
-
-    .block-body {
-      padding: 8px 10px;
-      transition: padding 150ms;
-    }
-
-    .block.collapsed .block-body {
-      display: none;
-    }
-
-    .block.collapsed .block-head {
-      border-bottom-color: transparent;
-    }
-
-    .block:not(.collapsed) .block-head {
-      border-bottom-color: var(--line);
-    }
-
-    /* ── Filter fields ── */
-    .field {
-      margin-bottom: 7px;
-    }
-
-    .field:last-child { margin-bottom: 0; }
-
-    .field label {
-      display: block;
-      font-size: 11px;
-      color: var(--muted);
-      margin-bottom: 3px;
-      font-weight: 500;
-    }
-
-    /* ── Custom Select ── */
-    .select-wrap {
-      position: relative;
-    }
-
-    .select-wrap select {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-      width: 0;
-      height: 0;
-    }
+    /* Custom select dropdown */
+    .cs-wrap { position: relative; }
+    .cs-wrap select { position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0; }
 
     .cs-trigger {
-      width: 100%;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      border: 1px solid var(--line-strong);
-      border-radius: 6px;
-      background: var(--ivory);
-      color: var(--ink);
-      font-family: var(--font-body);
-      font-size: 12px;
-      font-weight: 600;
-      padding: 0 26px 0 8px;
-      cursor: pointer;
-      user-select: none;
+      width: 100%; height: 36px;
+      display: flex; align-items: center;
+      padding: 0 32px 0 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px; font-weight: 500;
+      color: #1e293b;
+      cursor: pointer; user-select: none;
       position: relative;
-      transition: border-color 150ms, box-shadow 150ms;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      transition: all 150ms ease;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
     .cs-trigger::after {
       content: "";
-      position: absolute;
-      right: 9px;
-      top: 50%;
-      width: 6px;
-      height: 6px;
-      border-right: 1.5px solid var(--sage);
-      border-bottom: 1.5px solid var(--sage);
+      position: absolute; right: 12px; top: 50%;
+      width: 6px; height: 6px;
+      border-right: 1.5px solid #94a3b8;
+      border-bottom: 1.5px solid #94a3b8;
       transform: translateY(-65%) rotate(45deg);
-      pointer-events: none;
       transition: transform 200ms ease;
     }
 
-    .cs-trigger:hover {
-      border-color: var(--sage);
+    .cs-trigger:hover { border-color: #3366ff; }
+
+    .cs-wrap.cs-open .cs-trigger {
+      border-color: #3366ff;
+      box-shadow: 0 0 0 3px rgba(51,102,255,0.1);
     }
 
-    .select-wrap.cs-open .cs-trigger {
-      border-color: var(--sage);
-      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.18);
-      border-radius: 6px 6px 0 0;
-    }
-
-    .select-wrap.cs-open .cs-trigger::after {
+    .cs-wrap.cs-open .cs-trigger::after {
       transform: translateY(-35%) rotate(-135deg);
     }
 
-    .cs-options {
+    .cs-dropdown {
       display: none;
       position: fixed;
-      max-height: 200px;
+      max-height: 220px;
       overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--sage-light) transparent;
-      background: var(--ivory);
-      border: 1px solid var(--sage);
-      border-top: 1px solid var(--line);
-      border-radius: 0 0 6px 6px;
-      z-index: 999;
-      box-shadow: 0 6px 16px rgba(44, 62, 45, 0.12);
-    }
-
-    .cs-options::-webkit-scrollbar { width: 4px; }
-    .cs-options::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
-    .cs-options::-webkit-scrollbar-track { background: transparent; }
-
-    .select-wrap.cs-open .cs-options {
-      display: block;
-    }
-
-    .cs-option {
-      padding: 6px 8px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--ink);
-      cursor: pointer;
-      transition: background 100ms;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .cs-option:hover {
-      background: rgba(139, 158, 107, 0.12);
-    }
-
-    .cs-option.cs-selected {
-      background: rgba(139, 158, 107, 0.18);
-      font-weight: 700;
-      color: var(--forest);
-    }
-
-    input[type="text"], input:not([type]) {
-      width: 100%;
-      height: 30px;
-      border: 1px solid var(--line-strong);
-      border-radius: 6px;
-      background: var(--ivory);
-      color: var(--ink);
-      font-family: var(--font-body);
-      font-size: 12px;
-      padding: 0 8px;
-      outline: none;
-      transition: border-color 150ms, box-shadow 150ms;
-    }
-
-    input:hover {
-      border-color: var(--sage);
-    }
-
-    input:focus {
-      border-color: var(--sage);
-      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.18);
-    }
-
-    input::placeholder {
-      color: rgba(122, 139, 110, 0.6);
-    }
-
-    /* ── Buttons ── */
-    .btns {
-      display: flex;
-      gap: 6px;
-      margin-top: 8px;
-      flex-wrap: wrap;
-    }
-
-    button {
-      height: 28px;
-      border: none;
-      border-radius: 6px;
-      font-family: var(--font-body);
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      padding: 0 12px;
-      transition: all 150ms ease;
-      white-space: nowrap;
-    }
-
-    button.primary {
-      background: linear-gradient(135deg, var(--forest), var(--forest-light));
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(45, 80, 22, 0.2);
-    }
-
-    button.primary:hover {
-      box-shadow: 0 4px 12px rgba(45, 80, 22, 0.3);
-      transform: translateY(-1px);
-    }
-
-    button.ghost {
-      background: var(--ivory);
-      color: var(--bark);
-      border: 1px solid var(--line-strong);
-    }
-
-    button.ghost:hover {
-      background: var(--parchment);
-      border-color: var(--bark-light);
-    }
-
-    button.secondary {
-      background: linear-gradient(135deg, var(--bark), var(--bark-light));
-      color: #fff;
-      box-shadow: 0 2px 6px rgba(92, 64, 51, 0.15);
-    }
-
-    button.secondary:hover {
-      box-shadow: 0 4px 12px rgba(92, 64, 51, 0.25);
-      transform: translateY(-1px);
-    }
-
-    /* ── Quick filter chips ── */
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-    }
-
-    .chip {
-      border-radius: 999px;
-      padding: 3px 9px;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      user-select: none;
-      border: 1px solid transparent;
-      transition: all 120ms ease;
-    }
-
-    .chip.all {
-      background: rgba(44, 62, 45, 0.08);
-      border-color: rgba(44, 62, 45, 0.15);
-      color: var(--ink);
-    }
-
-    .chip.error {
-      color: var(--error);
-      background: var(--error-bg);
-      border-color: var(--error-border);
-    }
-
-    .chip.warn {
-      color: var(--warn);
-      background: var(--warn-bg);
-      border-color: var(--warn-border);
-    }
-
-    .chip.info {
-      color: var(--info);
-      background: var(--info-bg);
-      border-color: var(--info-border);
-    }
-
-    .chip:hover { opacity: 0.85; transform: translateY(-1px); }
-
-    .chip.active {
-      box-shadow: 0 0 0 2px rgba(124, 154, 94, 0.3) inset;
-      transform: translateY(-1px);
-    }
-
-    /* ── Sidebar lists ── */
-    .list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 6px;
-      max-height: 480px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--sage-light) transparent;
-    }
-
-    .list::-webkit-scrollbar { width: 4px; }
-    .list::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
-    .list::-webkit-scrollbar-track { background: transparent; }
-
-    .list li {
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: rgba(250, 248, 240, 0.6);
-      padding: 8px 10px;
-      font-size: 11px;
-      line-height: 1.55;
-      color: var(--ink-light);
-      transition: border-color 120ms, background 120ms;
-      word-break: break-word;
-    }
-
-    .list .title {
-      color: var(--bark);
-      font-weight: 700;
-      font-size: 12px;
-      margin-bottom: 3px;
-      line-height: 1.4;
-      word-break: break-word;
-    }
-
-    .list .rule-desc-text {
-      margin-top: 3px;
-      color: var(--ink-light);
-      font-size: 11px;
-      line-height: 1.5;
-      word-break: break-word;
-    }
-
-    .rule-item {
-      cursor: pointer;
-      position: relative;
-      transition: border-color 120ms, background 120ms, padding-left 120ms;
-    }
-
-    .rule-item:hover {
-      border-color: rgba(124, 154, 94, 0.4);
-      background: rgba(139, 158, 107, 0.06);
-      padding-left: 14px;
-    }
-
-    .rule-item::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 0;
-      border-radius: 2px;
-      background: linear-gradient(180deg, var(--sage), var(--forest));
-      transition: height 120ms ease;
-    }
-
-    .rule-item:hover::before {
-      height: 60%;
-    }
-
-    /* ── Snapshot pre ── */
-    pre {
-      margin: 0;
-      padding: 8px;
-      border-radius: 6px;
-      border: 1px solid var(--line);
-      background: rgba(250, 248, 240, 0.6);
-      max-height: 120px;
-      overflow: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--sage-light) transparent;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--ink-light);
-      line-height: 1.5;
-    }
-
-    pre::-webkit-scrollbar { width: 4px; }
-    pre::-webkit-scrollbar-thumb { background: var(--sage-light); border-radius: 4px; }
-    pre::-webkit-scrollbar-track { background: transparent; }
-
-    /* ── Main content area ── */
-    .main {
-      min-height: 0;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 0;
-      background: var(--cream);
-    }
-
-    .head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      padding: 10px 16px;
-      background: linear-gradient(90deg, var(--ivory) 0%, rgba(245, 241, 230, 0.6) 100%);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .head h2 {
-      font-family: var(--font-display);
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--forest);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .head h2::before {
-      content: "";
-      width: 4px;
-      height: 16px;
-      border-radius: 2px;
-      background: linear-gradient(180deg, var(--forest), var(--sage));
-    }
-
-    .live {
-      font-size: 11px;
-      color: var(--muted);
-    }
-
-    .pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      padding: 6px 16px;
-      background: rgba(245, 241, 230, 0.5);
-      border-bottom: 1px solid var(--line);
-      min-height: 32px;
-      align-items: center;
-    }
-
-    .pill {
-      border-radius: 999px;
-      border: 1px solid var(--line-strong);
-      padding: 2px 9px;
-      font-size: 11px;
-      font-weight: 600;
-      background: var(--ivory);
-      color: var(--ink-light);
-      white-space: nowrap;
-      max-width: 200px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: background 120ms, border-color 120ms;
-    }
-
-    .pill:hover {
-      background: var(--parchment);
-      border-color: rgba(124, 154, 94, 0.3);
-    }
-
-    /* ── Table area (the ONLY scrollable zone) ── */
-    .table-wrap, .group-wrap {
-      min-height: 0;
-      position: relative;
-      overflow: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--sage-light) transparent;
-      background: var(--cream);
-    }
-
-    .table-wrap::-webkit-scrollbar,
-    .group-wrap::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    .table-wrap::-webkit-scrollbar-thumb,
-    .group-wrap::-webkit-scrollbar-thumb {
-      background: var(--sage-light);
-      border-radius: 4px;
-    }
-
-    .table-wrap::-webkit-scrollbar-track,
-    .group-wrap::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    table {
-      width: 100%;
-      min-width: 860px;
-      border-collapse: collapse;
-      font-size: 12px;
-      table-layout: auto;
-    }
-
-    thead {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-    }
-
-    th {
-      text-align: left;
-      padding: 10px 12px;
-      background: linear-gradient(180deg, var(--parchment) 0%, rgba(245, 241, 230, 0.85) 100%);
-      border-bottom: 2px solid rgba(124, 154, 94, 0.35);
-      color: var(--forest);
-      font-family: var(--font-display);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-      position: relative;
-      user-select: none;
-    }
-
-    th::after {
-      content: "";
-      position: absolute;
-      bottom: -2px;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(124, 154, 94, 0.2), transparent);
-    }
-
-    /* ── Column resize handle ── */
-    th .col-resizer {
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 5px;
-      cursor: col-resize;
-      z-index: 3;
-      background: transparent;
-      transition: background 150ms;
-    }
-
-    th .col-resizer:hover,
-    th .col-resizer.resizing {
-      background: rgba(124, 154, 94, 0.4);
-    }
-
-    td {
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
-      overflow: hidden;
-      line-height: 1.5;
-    }
-
-    /* 斑马纹 */
-    tbody tr:nth-child(even) td {
-      background: rgba(245, 241, 230, 0.35);
-    }
-
-    tr:hover td {
-      background: rgba(139, 158, 107, 0.08);
-    }
-
-    .rule-main {
-      font-weight: 700;
-      color: var(--bark);
-      font-size: 12px;
-      line-height: 1.35;
-      word-break: break-word;
-    }
-
-    .rule-sub {
-      margin-top: 1px;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.4;
-      word-break: break-word;
-    }
-
-    /* ── Severity badges ── */
-    .sev {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 2px 9px;
-      font-size: 11px;
-      font-weight: 700;
-      white-space: nowrap;
-      letter-spacing: 0.02em;
-    }
-
-    .sev.error {
-      color: var(--error);
-      background: var(--error-bg);
-      border: 1px solid var(--error-border);
-    }
-
-    .sev.warn {
-      color: var(--warn);
-      background: var(--warn-bg);
-      border: 1px solid var(--warn-border);
-    }
-
-    .sev.info {
-      color: var(--info);
-      background: var(--info-bg);
-      border: 1px solid var(--info-border);
-    }
-
-    .loc {
-      display: block;
-      max-width: 100%;
-      padding: 2px 7px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-family: var(--font-mono);
-      border: 1px solid var(--line);
-      background: rgba(245, 241, 230, 0.6);
-      color: var(--ink-light);
-      line-height: 1.5;
-      white-space: normal;
-      word-break: break-word;
-      transition: border-color 120ms, background 120ms;
-    }
-
-    .loc:hover {
-      border-color: rgba(124, 154, 94, 0.3);
-      background: rgba(245, 241, 230, 0.9);
-    }
-
-    /* ── Grouped view ── */
-    .group-wrap {
-      padding: 12px;
-      display: grid;
-      align-content: start;
-      gap: 8px;
-    }
-
-    .g-card {
-      border-radius: var(--radius);
-      border: 1px solid var(--line-strong);
-      overflow: hidden;
-      background: var(--ivory);
-      box-shadow: var(--shadow-sm);
-      transition: box-shadow 150ms ease;
-    }
-
-    .g-card:hover {
-      box-shadow: var(--shadow);
-    }
-
-    .g-head {
-      padding: 8px 10px;
-      display: flex;
-      justify-content: space-between;
-      gap: 6px;
-      align-items: center;
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(135deg, var(--parchment) 0%, rgba(245, 241, 230, 0.7) 100%);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .g-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-      align-items: center;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .g-badge {
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      padding: 1px 7px;
-      font-size: 11px;
-      background: var(--ivory);
-      font-weight: 600;
-      color: var(--ink-light);
-      max-width: 360px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .g-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-
-    .g-desc {
-      padding: 6px 12px;
-      font-size: 12px;
-      color: var(--ink-light);
-      background: var(--moss-pale);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .g-list-header {
-      display: grid;
-      grid-template-columns: 180px 1fr 160px 100px;
-      gap: 8px;
-      padding: 4px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--muted);
-      border-bottom: 1px solid var(--line);
-      background: rgba(245, 241, 230, 0.4);
-    }
-
-    .g-item {
-      padding: 5px 10px;
-      border-top: 1px dashed var(--line);
-      display: grid;
-      grid-template-columns: 180px 1fr 160px 100px;
-      gap: 8px;
-      align-items: center;
-      position: relative;
-      transition: background 120ms;
-    }
-
-    .g-item:first-child { border-top: none; }
-
-    .g-item:hover {
-      background: rgba(139, 158, 107, 0.04);
-    }
-
-    .g-row-no {
-      font-size: 12px;
-      font-family: var(--font-mono);
-    }
-
-    .g-msg-cell {
-      font-size: 12px;
-      color: var(--ink);
-      word-break: break-word;
-      line-height: 1.5;
-    }
-
-    .g-expect-cell {
-      font-size: 11px;
-      color: var(--ink-light);
-      word-break: break-word;
-      line-height: 1.4;
-    }
-
-    .g-actual {
-      font-size: 12px;
-      color: var(--error);
-      font-weight: 600;
-      word-break: break-word;
-      text-align: right;
-    }
-
-    /* ── Empty state ── */
-    .empty {
-      position: absolute;
-      inset: 40px 12px 12px 12px;
-      border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 600;
-      background: linear-gradient(135deg, rgba(250, 248, 240, 0.6) 0%, rgba(245, 241, 230, 0.4) 100%);
-      border: 1px dashed var(--line);
-    }
-
-    .empty svg {
-      display: block;
-      margin: 0 auto 8px;
-      opacity: 0.4;
-    }
-
-    [hidden] { display: none !important; }
-
-    /* ── Text display ── */
-    .ellipsis {
-      display: block;
-      word-break: break-word;
-      line-height: 1.5;
-    }
-
-    /* Column name highlight in message */
-    .col-highlight {
-      display: inline;
-      padding: 0 3px;
-      border-radius: 3px;
-      background: rgba(92, 64, 51, 0.10);
-      color: var(--bark);
-      font-weight: 700;
-      font-size: 12px;
-    }
-
-    /* ── Global Tooltip ── */
-    .g-tooltip {
-      position: fixed;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       z-index: 9999;
-      max-width: 420px;
-      min-width: 60px;
-      padding: 6px 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+      padding: 4px;
+    }
+
+    .cs-wrap.cs-open .cs-dropdown { display: block; }
+
+    .cs-opt {
+      padding: 8px 12px;
+      font-size: 13px; font-weight: 500;
+      color: #334155;
+      cursor: pointer;
       border-radius: 6px;
-      background: var(--ink);
-      color: var(--cream);
-      font-family: var(--font-body);
-      font-size: 11px;
-      font-weight: 500;
+      transition: background 100ms;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .cs-opt:hover { background: #f1f5f9; }
+
+    .cs-opt.cs-active {
+      background: #eff6ff;
+      color: #3366ff;
+      font-weight: 600;
+    }
+
+
+    /* Tooltip */
+    .g-tooltip {
+      position: fixed; z-index: 99999;
+      max-width: 420px; min-width: 60px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+      font-size: 12px; font-weight: 500;
       line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-all;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      white-space: pre-wrap; word-break: break-all;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05);
       pointer-events: none;
       opacity: 0;
       transition: opacity 120ms ease;
     }
 
+    .g-tooltip.g-tooltip-rich {
+      padding: 0;
+      white-space: normal;
+      word-break: normal;
+    }
+
     .g-tooltip.visible { opacity: 1; }
 
-    /* ── Leaf decorations ── */
-    .leaf-accent {
-      position: absolute;
-      pointer-events: none;
-      opacity: 0.04;
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99999;
+      animation: modalFadeIn 200ms ease;
     }
 
-    /* ── Responsive ── */
-
-    /* Large tablets / narrow desktops */
-    @media (max-width: 1200px) {
-      .hero {
-        padding: 10px 14px;
-        gap: 10px;
-      }
-
-      .hero h1 {
-        font-size: 16px;
-      }
-
-      .stats-bar {
-        gap: 2px;
-      }
-
-      .stat-chip {
-        padding: 3px 7px;
-        font-size: 11px;
-      }
-
-      .stat-chip .stat-num {
-        font-size: 12px;
-      }
-
-      .workspace {
-        grid-template-columns: 280px 1fr;
-      }
+    .modal-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.15);
+      animation: modalSlideIn 250ms cubic-bezier(0.16,1,0.3,1);
     }
 
-    /* Tablets */
-    @media (max-width: 1000px) {
-      .app {
-        padding: 8px;
-        grid-template-rows: auto 1fr;
-      }
+    @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modalSlideIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-      .hero {
-        flex-direction: column;
-        align-items: stretch;
-        border-radius: var(--radius-lg);
-      }
+    /* Fade-in */
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .app { animation: fadeUp 400ms ease; }
 
-      .hero-left {
-        gap: 10px;
-      }
+    /* Rule catalog scroller hide scrollbar */
+    #ruleCatalogScroller::-webkit-scrollbar { display: none; }
 
-      .stats-bar {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-      }
-
-      .workspace {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-      }
-
-      .sidebar {
-        max-height: 200px;
-        flex-direction: row;
-        flex-wrap: wrap;
-        overflow-y: auto;
-        padding: 6px;
-        gap: 4px;
-      }
-
-      .sidebar .block {
-        flex: 1 1 200px;
-        min-width: 180px;
-      }
-
-      .main {
-        grid-template-rows: auto auto 1fr auto;
-      }
+    .rule-chip {
+      transition: all 150ms ease;
     }
-
-    /* Mobile */
-    @media (max-width: 640px) {
-      .app {
-        padding: 4px;
-      }
-
-      .hero {
-        padding: 8px 10px;
-      }
-
-      .hero-icon {
-        width: 28px;
-        height: 28px;
-        border-radius: 7px;
-      }
-
-      .hero-icon svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      .hero h1 {
-        font-size: 14px;
-      }
-
-      .hero-meta {
-        gap: 4px;
-        font-size: 10px;
-      }
-
-      .hero-tag {
-        font-size: 10px;
-        padding: 1px 6px;
-      }
-
-      .stat-chip {
-        padding: 2px 6px;
-        font-size: 10px;
-      }
-
-      .stat-chip .stat-num {
-        font-size: 11px;
-      }
-
-      .sidebar {
-        max-height: 160px;
-        flex-direction: column;
-      }
-
-      .sidebar .block {
-        flex: none;
-        min-width: 0;
-      }
-
-      .head {
-        padding: 8px 10px;
-      }
-
-      .head h2 {
-        font-size: 13px;
-      }
-
-      .pills {
-        padding: 4px 10px;
-      }
-
-      .pagination {
-        padding: 6px 10px;
-        gap: 2px;
-      }
-
-      .pagination button {
-        min-width: 24px;
-        height: 24px;
-        font-size: 10px;
-      }
+    .rule-chip:not(.rule-chip-active):hover {
+      background: #f0f5ff;
+      border-color: #c2d5ff;
+      color: #3366ff;
     }
-
-    /* ── Subtle entrance animation ── */
-    @keyframes fadeSlideIn {
-      from {
-        opacity: 0;
-        transform: translateY(6px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
+    .rule-chip-active {
+      background: #3366ff !important;
+      color: #fff !important;
+      border-color: #3366ff !important;
+      box-shadow: 0 2px 8px rgba(51,102,255,0.25);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      font-weight: 700 !important;
     }
-
-    .app {
-      animation: fadeSlideIn 400ms ease-out;
-    }
-
-    /* ── Pagination controls ── */
-    .pagination {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      padding: 8px 16px;
-      background: var(--ivory);
-      border-top: 1px solid var(--line);
-      font-size: 12px;
-      flex-shrink: 0;
-    }
-
-    .pagination button {
-      min-width: 28px;
-      height: 26px;
-      padding: 0 6px;
-      border-radius: 5px;
-      font-size: 11px;
-      font-weight: 600;
-      background: var(--ivory);
-      color: var(--ink-light);
-      border: 1px solid var(--line-strong);
-      cursor: pointer;
-    }
-
-    .pagination button:hover:not(:disabled) {
-      background: var(--parchment);
-      border-color: var(--sage);
-    }
-
-    .pagination button.active {
-      background: linear-gradient(135deg, var(--forest), var(--forest-light));
-      color: #fff;
-      border-color: var(--forest);
-      box-shadow: 0 2px 6px rgba(45, 80, 22, 0.2);
-    }
-
-    .pagination button:disabled {
-      opacity: 0.4;
-      cursor: default;
-    }
-
-    .pagination .page-info {
-      color: var(--muted);
-      font-size: 11px;
-      margin: 0 6px;
+    .rule-chip-active span {
+      color: #fff !important;
     }
   </style>
 </head>
-<body>
-  <main class="app">
-    <!-- ── Header ── -->
-    <header class="hero">
-      <div class="hero-left">
-        <div class="hero-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+<body class="bg-slate-50 text-slate-800 text-[13px]">
+  <main class="app h-screen grid grid-rows-[auto_1fr]">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+      <div class="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+        <div class="shrink-0 w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center shadow-[0_4px_12px_rgba(51,102,255,0.3)]">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="2"/>
+            <path d="m9 14 2 2 4-4"/>
           </svg>
         </div>
-        <div>
-          <h1>{{title}}</h1>
-          <div class="hero-meta">
+        <div class="min-w-0 overflow-hidden">
+          <h1 class="font-display text-[17px] font-bold text-slate-900 truncate tracking-tight">{{title}}</h1>
+          <div class="flex items-center gap-1.5 flex-wrap mt-0.5 text-[11px] text-slate-400">
             <span>{{generated_at}}</span>
-            <span class="hero-tag">{{run_id}}</span>
-            <span class="hero-tag" data-tip="输入哈希" data-tip-pos="below">IN:{{input_hash_short}}</span>
-            <span class="hero-tag" data-tip="规则哈希" data-tip-pos="below">RL:{{rules_hash_short}}</span>
+            <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500">{{run_id}}</span>
+            <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500" data-tip="输入哈希">IN:{{input_hash_short}}</span>
+            <span class="px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-mono font-medium text-slate-500" data-tip="规则哈希">RL:{{rules_hash_short}}</span>
           </div>
         </div>
       </div>
-      <div class="stats-bar">
-        <span class="stat-chip total">
-          <span>总计</span>
-          <span class="stat-num" id="totalCount">{{total_issues}}</span>
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+          总计 <span class="text-base font-bold font-display" id="totalCount">{{total_issues}}</span>
         </span>
-        <span class="stat-chip error">
-          <span>错误</span>
-          <span class="stat-num" id="errorCount">0</span>
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+          错误 <span class="text-base font-bold font-display" id="errorCount">0</span>
         </span>
-        <span class="stat-chip warn">
-          <span>警告</span>
-          <span class="stat-num" id="warnCount">0</span>
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-200">
+          警告 <span class="text-base font-bold font-display" id="warnCount">0</span>
         </span>
-        <span class="stat-chip info">
-          <span>信息</span>
-          <span class="stat-num" id="infoCount">0</span>
+        <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 border border-indigo-200">
+          信息 <span class="text-base font-bold font-display" id="infoCount">0</span>
         </span>
       </div>
     </header>
 
-    <!-- ── Body: sidebar + main ── -->
-    <section class="workspace">
-      <aside class="sidebar">
-        <!-- Filters -->
-        <section class="block">
-          <div class="block-head">
-            <h2>筛选条件</h2>
+    <section class="grid grid-cols-[320px_1fr] overflow-hidden">
+      <!-- Sidebar -->
+      <aside class="overflow-y-auto bg-white border-r border-slate-200 p-3 flex flex-col gap-1">
+
+        <!-- Filter block -->
+        <section class="rounded-xl" id="filterBlock">
+          <div class="flex items-center justify-between px-3 py-2.5">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>筛选条件
+            </h2>
           </div>
-          <div class="block-body">
-            <div class="field">
-              <label>规则</label>
-              <div class="select-wrap">
+          <div class="px-3 pb-3 space-y-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-500 font-semibold mb-1">规则</label>
+              <div class="cs-wrap">
                 <select id="ruleFilter"><option value="">全部规则</option></select>
               </div>
             </div>
-            <div class="field">
-              <label>严重级别</label>
-              <div class="select-wrap">
+            <div>
+              <label class="block text-[11px] text-slate-500 font-semibold mb-1">严重级别</label>
+              <div class="cs-wrap">
                 <select id="severityFilter">
                   <option value="all">全部</option>
                   <option value="error">错误</option>
@@ -1385,22 +285,23 @@
                 </select>
               </div>
             </div>
-            <div class="field">
-              <label>查看方式</label>
-              <div class="select-wrap">
+            <div>
+              <label class="block text-[11px] text-slate-500 font-semibold mb-1">查看方式</label>
+              <div class="cs-wrap">
                 <select id="viewMode">
                   <option value="flat">明细表</option>
                   <option value="grouped">按类别分组</option>
                 </select>
               </div>
             </div>
-            <div class="field">
-              <label>关键词搜索</label>
-              <input id="keywordFilter" placeholder="回车搜索..." />
+            <div>
+              <label class="block text-[11px] text-slate-500 font-semibold mb-1">关键词搜索</label>
+              <input id="keywordFilter" placeholder="输入关键词筛选..."
+                class="w-full h-9 border border-slate-200 rounded-lg bg-white text-slate-800 text-[13px] px-3 outline-none transition-all hover:border-brand-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 placeholder:text-slate-300" />
             </div>
-            <div class="field">
-              <label>排序方式</label>
-              <div class="select-wrap">
+            <div>
+              <label class="block text-[11px] text-slate-500 font-semibold mb-1">排序方式</label>
+              <div class="cs-wrap">
                 <select id="sortBy">
                   <option value="severity">按级别</option>
                   <option value="rule">按规则</option>
@@ -1408,191 +309,268 @@
                 </select>
               </div>
             </div>
-            <div class="btns">
-              <button type="button" class="primary" onclick="applyFilter()">应用</button>
-              <button type="button" class="ghost" onclick="resetFilter()">重置</button>
-              <button type="button" class="secondary" onclick="downloadCsv()">导出CSV</button>
+            <div class="flex gap-2 pt-1">
+              <button type="button" onclick="resetFilter()"
+                class="h-8 px-4 rounded-lg text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all">
+                重置
+              </button>
+              <button type="button" onclick="confirmExportCsv()"
+                class="h-8 px-4 rounded-lg text-xs font-semibold text-brand-600 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-all">
+                导出CSV
+              </button>
             </div>
           </div>
         </section>
 
-        <!-- Quick chips -->
-        <section class="block">
-          <div class="block-head">
-            <h2>快速筛选</h2>
+        <!-- Quick filter -->
+        <section class="rounded-xl">
+          <div class="flex items-center justify-between px-3 py-2.5">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>快速筛选
+            </h2>
           </div>
-          <div class="block-body">
-            <div class="chips" id="quickChips">
-              <span class="chip all" data-sev="all">全部</span>
-              <span class="chip error" data-sev="error">错误</span>
-              <span class="chip warn" data-sev="warn">警告</span>
-              <span class="chip info" data-sev="info">信息</span>
+          <div class="px-3 pb-3">
+            <div id="quickChips" class="flex flex-wrap gap-1.5">
+              <span class="chip-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer border transition-all bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200" data-sev="all">全部</span>
+              <span class="chip-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer border transition-all bg-red-50 text-red-500 border-red-200 hover:bg-red-100" data-sev="error">错误</span>
+              <span class="chip-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer border transition-all bg-amber-50 text-amber-500 border-amber-200 hover:bg-amber-100" data-sev="warn">警告</span>
+              <span class="chip-btn px-3 py-1 rounded-full text-[11px] font-semibold cursor-pointer border transition-all bg-indigo-50 text-indigo-500 border-indigo-200 hover:bg-indigo-100" data-sev="info">信息</span>
             </div>
           </div>
         </section>
 
-        <!-- Input files (collapsible) -->
-        <section class="block collapsed" id="filesBlock">
-          <div class="block-head collapsible" onclick="toggleBlock('filesBlock')">
-            <h2>检查文件</h2>
-            <span class="toggle-icon">▼</span>
+        <!-- Files block -->
+        <section class="rounded-xl collapsed" id="filesBlock">
+          <div class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors" onclick="toggleBlock('filesBlock')">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>检查文件
+            </h2>
+            <span class="toggle-icon text-slate-300 text-[10px] transition-transform duration-200">▼</span>
           </div>
-          <div class="block-body">
-            <ul id="inputFilesList" class="list"></ul>
+          <div class="block-body px-3 pb-3">
+            <ul id="inputFilesList" class="space-y-1.5"></ul>
           </div>
         </section>
 
-        <!-- Rule catalog (default expanded) -->
-        <section class="block" id="rulesBlock">
-          <div class="block-head collapsible" onclick="toggleBlock('rulesBlock')">
-            <h2>规则目录</h2>
-            <span class="toggle-icon">▼</span>
+        <!-- Rules catalog removed from sidebar, moved to main content area -->
+
+        <!-- Rule details block -->
+        <section class="rounded-xl collapsed" id="ruleDetailsBlock">
+          <div class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors" onclick="toggleBlock('ruleDetailsBlock')">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>规则清单
+            </h2>
+            <span class="flex items-center gap-1.5">
+              <span id="ruleDetailsCount" class="text-[10px] text-slate-400 font-medium"></span>
+              <span class="toggle-icon text-slate-300 text-[10px] transition-transform duration-200">▼</span>
+            </span>
           </div>
-          <div class="block-body">
-            <ul id="ruleCatalogList" class="list"></ul>
+          <div class="block-body px-3 pb-3">
+            <ul id="ruleDetailsList" class="space-y-1.5"></ul>
           </div>
         </section>
 
         <!-- Snapshot -->
-        <section class="block collapsed" id="snapshotBlock">
-          <div class="block-head collapsible" onclick="toggleBlock('snapshotBlock')">
-            <h2>统计快照</h2>
-            <span class="toggle-icon">▼</span>
+        <section class="rounded-xl collapsed" id="snapshotBlock">
+          <div class="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors" onclick="toggleBlock('snapshotBlock')">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>统计快照
+            </h2>
+            <span class="toggle-icon text-slate-300 text-[10px] transition-transform duration-200">▼</span>
           </div>
-          <div class="block-body">
-            <pre id="snapshotPanel">{{severity_json}}</pre>
+          <div class="block-body px-3 pb-3">
+            <pre id="snapshotPanel" class="p-3 rounded-lg border border-slate-200 bg-slate-50 text-[11px] font-mono text-slate-500 max-h-[120px] overflow-auto leading-relaxed">{{severity_json}}</pre>
           </div>
         </section>
       </aside>
 
-      <section class="main">
-        <div class="head">
-          <h2>问题明细</h2>
-          <div id="liveRegion" class="live" aria-live="polite"></div>
+      <!-- Main content -->
+      <section class="min-h-0 grid grid-rows-[auto_auto_1fr] gap-0">
+        <div class="flex items-center justify-between gap-3 px-7 py-3.5 bg-white border-b border-slate-200">
+          <h2 class="font-display text-[15px] font-bold text-slate-900 flex items-center gap-2 tracking-tight shrink-0">
+            <span class="w-1 h-[18px] rounded-full bg-brand-500"></span>问题明细
+          </h2>
+          <div id="groupPills" class="flex flex-wrap gap-1.5 items-center justify-end flex-1 min-w-0"></div>
+          <div id="liveRegion" class="text-xs text-slate-400 font-medium shrink-0" aria-live="polite"></div>
         </div>
 
-        <div id="groupPills" class="pills"></div>
+        <!-- Rule Catalog horizontal scroller -->
+        <div id="ruleCatalogBar" class="relative bg-white border-b border-slate-200">
+          <div class="flex items-center gap-2 px-7 py-2">
+            <span class="shrink-0 text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>规则目录
+            </span>
+            <button type="button" onclick="scrollRuleCatalog(-200)" class="shrink-0 w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all border border-slate-200">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <!-- 固定的"全部规则"按钮 -->
+            <span id="allRulesChip" class="rule-chip rule-chip-active shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer border whitespace-nowrap" data-rule-id="">全部规则</span>
+            <div id="ruleCatalogScroller" class="flex-1 overflow-x-auto overflow-y-hidden flex gap-2 items-stretch py-0.5 scroll-smooth" style="scrollbar-width:none;-ms-overflow-style:none;">
+              <!-- 其他规则 chips 动态渲染 -->
+            </div>
+            <button type="button" onclick="scrollRuleCatalog(200)" class="shrink-0 w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all border border-slate-200">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
 
-        <div id="tableWrap" class="table-wrap">
-          <table id="issueTable">
-            <thead>
+        <!-- Flat table view -->
+        <div id="tableWrap" class="min-h-0 overflow-auto relative">
+          <table id="issueTable" class="w-full border-collapse text-[13px]">
+            <thead class="sticky top-0 z-[2]">
               <tr>
-                <th style="min-width:60px">级别<div class="col-resizer"></div></th>
-                <th style="min-width:120px">规则<div class="col-resizer"></div></th>
-                <th style="min-width:120px">位置<div class="col-resizer"></div></th>
-                <th style="min-width:160px">问题描述<div class="col-resizer"></div></th>
-                <th style="min-width:100px">期望值<div class="col-resizer"></div></th>
-                <th style="min-width:80px">实际值<div class="col-resizer"></div></th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap" style="width:56px">级别</th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">规则</th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">位置</th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap" style="width:36%">问题描述</th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">期望值</th>
+                <th class="text-left px-3 py-2.5 bg-slate-50 border-b-2 border-brand-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap" style="width:80px">实际值</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
-          <div id="emptyState" class="empty" hidden>
+          <div id="emptyState" class="absolute inset-12 rounded-2xl flex items-center justify-center text-center text-slate-300 text-sm font-semibold border-2 border-dashed border-slate-200 bg-white/60" hidden>
             <div>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto mb-2 opacity-30">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="2"/>
+                <path d="m9 14 2 2 4-4"/>
               </svg>
               <div>当前筛选条件下没有问题记录</div>
             </div>
           </div>
         </div>
 
-        <div id="paginationWrap" class="pagination" hidden></div>
+        <div id="paginationWrap" class="flex items-center justify-center gap-1 px-7 py-2.5 bg-white border-t border-slate-200 shrink-0" hidden></div>
 
-        <div id="groupWrap" class="group-wrap" hidden>
+        <!-- Grouped view -->
+        <div id="groupWrap" class="min-h-0 overflow-auto p-6 space-y-3" hidden>
           <div id="groupBoard"></div>
-          <div id="groupEmpty" class="empty" hidden>
+          <div id="groupEmpty" class="absolute inset-12 rounded-2xl flex items-center justify-center text-center text-slate-300 text-sm font-semibold border-2 border-dashed border-slate-200 bg-white/60" hidden>
             <div>
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66L7 18c4-2 6-4 8-8"/><path d="M2 12c5.5 0 8 2 10 6"/><path d="M22 2L15 9"/>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto mb-2 opacity-30">
+                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+                <rect x="9" y="3" width="6" height="4" rx="2"/>
+                <path d="m9 14 2 2 4-4"/>
               </svg>
               <div>当前筛选条件下没有可分组的问题记录</div>
             </div>
           </div>
         </div>
 
-        <div id="groupPaginationWrap" class="pagination" hidden></div>
+        <div id="groupPaginationWrap" class="flex items-center justify-center gap-1 px-7 py-2.5 bg-white border-t border-slate-200 shrink-0" hidden></div>
       </section>
     </section>
   </main>
 
+  <!-- CSV Export Confirm Modal (hidden by default) -->
+  <div id="csvModal" hidden>
+    <div class="modal-overlay" onclick="closeCsvModal(event)">
+      <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="flex items-start gap-3 mb-4">
+          <div class="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3366ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-display font-bold text-base text-slate-900">导出 CSV 文件</h3>
+            <p class="text-sm text-slate-500 mt-1">将当前筛选结果导出为 CSV 文件。</p>
+          </div>
+        </div>
+        <div class="bg-slate-50 rounded-lg px-4 py-3 mb-5 text-sm text-slate-600">
+          <div class="flex items-center justify-between">
+            <span>导出条数</span>
+            <span class="font-bold text-slate-800" id="csvExportCount">0</span>
+          </div>
+          <div class="flex items-center justify-between mt-1.5">
+            <span>文件名</span>
+            <span class="font-mono text-xs text-slate-500">校验问题_当前筛选_中文.csv</span>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button onclick="closeCsvModal()" class="h-9 px-5 rounded-lg text-sm font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all">取消</button>
+          <button onclick="doExportCsv()" class="h-9 px-5 rounded-lg text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 shadow-sm transition-all hover:shadow-md">确认导出</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script id="issuesJson" type="application/json">{{issues_json}}</script>
   <script id="inputsJson" type="application/json">{{inputs_json}}</script>
   <script id="ruleCatalogJson" type="application/json">{{rule_catalog_json}}</script>
+  <script id="ruleSheetsJson" type="application/json">{{rule_sheets_json}}</script>
   <script>
-    /* ── Collapse toggle ── */
+    /* ── Toggle blocks ── */
     function toggleBlock(id) {
       const el = document.getElementById(id);
-      if (el) el.classList.toggle("collapsed");
+      if (!el) return;
+      el.classList.toggle("collapsed");
+      const body = el.querySelector(".block-body");
+      const icon = el.querySelector(".toggle-icon");
+      if (el.classList.contains("collapsed")) {
+        if (body) body.style.display = "none";
+        if (icon) icon.style.transform = "rotate(-90deg)";
+      } else {
+        if (body) body.style.display = "";
+        if (icon) icon.style.transform = "";
+      }
     }
+
+    /* init collapsed state */
+    document.querySelectorAll(".collapsed").forEach(el => {
+      const body = el.querySelector(".block-body");
+      const icon = el.querySelector(".toggle-icon");
+      if (body) body.style.display = "none";
+      if (icon) icon.style.transform = "rotate(-90deg)";
+    });
 
     /* ── Data parsing ── */
     function parseJsonNode(id, fallback) {
       const node = document.getElementById(id);
       if (!node) return fallback;
-      try {
-        const parsed = JSON.parse(String(node.textContent || ""));
-        return parsed ?? fallback;
-      } catch {
-        return fallback;
-      }
+      try { const p = JSON.parse(String(node.textContent || "")); return p ?? fallback; } catch { return fallback; }
     }
 
-    const issues = (() => {
-      const parsed = parseJsonNode("issuesJson", []);
-      return Array.isArray(parsed) ? parsed : [];
-    })();
-    const inputFiles = (() => {
-      const parsed = parseJsonNode("inputsJson", []);
-      return Array.isArray(parsed) ? parsed : [];
-    })();
-    const ruleCatalog = (() => {
-      const parsed = parseJsonNode("ruleCatalogJson", []);
-      return Array.isArray(parsed) ? parsed : [];
+    const issues = (() => { const p = parseJsonNode("issuesJson", []); return Array.isArray(p) ? p : []; })();
+    const inputFiles = (() => { const p = parseJsonNode("inputsJson", []); return Array.isArray(p) ? p : []; })();
+    const ruleCatalog = (() => { const p = parseJsonNode("ruleCatalogJson", []); return Array.isArray(p) ? p : []; })();
+    const ruleSheetSet = (() => {
+      const arr = (() => { const p = parseJsonNode("ruleSheetsJson", []); return Array.isArray(p) ? p : []; })();
+      const s = new Set();
+      for (const item of arr) s.add((item.file || "") + "|||" + (item.sheet || ""));
+      return s;
     })();
 
     const rank = { error: 0, warn: 1, info: 2 };
     const PAGE_SIZE = 50;
-    const state = {
-      rule: "",
-      severity: "all",
-      keyword: "",
-      sortBy: "severity",
-      viewMode: "flat",
-      page: 1,
-    };
+    const state = { rule: "", severity: "all", keyword: "", sortBy: "severity", viewMode: "flat", page: 1 };
     let currentRows = issues.slice();
 
     const esc = (v) => String(v ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-    const sevKey = (v) => {
-      const x = String(v || "").toLowerCase();
-      if (x === "error" || x === "错误") return "error";
-      if (x === "warn" || x === "warning" || x === "警告") return "warn";
-      return "info";
-    };
+    const sevKey = (v) => { const x = String(v || "").toLowerCase(); if (x === "error" || x === "错误") return "error"; if (x === "warn" || x === "warning" || x === "警告") return "warn"; return "info"; };
     const sevLabel = (v) => (sevKey(v) === "error" ? "错误" : sevKey(v) === "warn" ? "警告" : "信息");
 
+    const sevClasses = {
+      error: "text-red-600 bg-red-50 border-red-200",
+      warn: "text-amber-600 bg-amber-50 border-amber-200",
+      info: "text-indigo-600 bg-indigo-50 border-indigo-200",
+    };
+
     function locationText(row) {
-      const file = row.file || "-";
-      const sheet = row.sheet || "-";
-      const rowNo = row.row || "-";
-      const col = row.column || "";
-      if (col) {
-        return `${file} / ${sheet} / 行 ${rowNo} / 列「${col}」`;
-      }
-      return `${file} / ${sheet} / 行 ${rowNo}`;
+      const file = row.file || "-", sheet = row.sheet || "-", rowNo = row.row || "-", col = row.column || "";
+      return col ? `${file} / ${sheet} / 行 ${rowNo} / 列「${col}」` : `${file} / ${sheet} / 行 ${rowNo}`;
     }
 
     function locationHtml(row) {
-      const file = esc(row.file || "-");
-      const sheet = esc(row.sheet || "-");
-      const rowNo = esc(String(row.row || "-"));
-      const col = esc(row.column || "");
-      let html = `<span style="color:var(--muted)">${file}</span> / <span style="color:var(--ink-light)">${sheet}</span> / <b style="color:var(--forest)">行 ${rowNo}</b>`;
+      const file = esc(row.file || "-"), sheet = esc(row.sheet || "-"), rowNo = esc(String(row.row || "-")), col = esc(row.column || "");
+      let h = `<span class="text-slate-400">${file}</span><span class="text-slate-300 mx-0.5">/</span><span class="text-slate-500 font-medium">${sheet}</span><span class="text-slate-300 mx-0.5">/</span><span class="text-brand-600 font-semibold text-[11px]">行 ${rowNo}</span>`;
       if (col) {
-        html += ` / <b style="color:var(--bark)">列「${col}」</b>`;
+        h += `<span class="text-slate-300 mx-0.5">/</span><span class="text-slate-500 font-medium text-[11px] bg-brand-50 px-1.5 py-0.5 rounded">列「${col}」</span>`;
       }
-      return html;
+      return h;
     }
 
     function ruleOptionLabel(row) {
@@ -1601,284 +579,237 @@
       return title && rid && title !== rid ? `${title} [${rid}]` : rid || title || "未知规则";
     }
 
+    function highlightColumnNames(text, colName) {
+      if (!text || !colName) return esc(text);
+      const escaped = esc(text), colEsc = esc(colName);
+      if (!colEsc) return escaped;
+      const re = new RegExp(colEsc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      return escaped.replace(re, `<span class="inline px-1 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold text-[12px]">${colEsc}</span>`);
+    }
+
+    /* ── Populate ── */
     function populateRuleDropdown() {
-      const select = document.getElementById("ruleFilter");
+      const sel = document.getElementById("ruleFilter");
       const map = new Map();
-      for (const row of issues) {
-        const rid = String(row.rule_id || "");
-        if (!rid) continue;
-        if (!map.has(rid)) {
-          map.set(rid, ruleOptionLabel(row));
-        }
-      }
-      const options = ['<option value="">全部规则</option>'];
-      Array.from(map.entries())
-        .sort((a, b) => a[1].localeCompare(b[1], "zh-CN"))
-        .forEach(([rid, label]) => {
-          options.push(`<option value="${esc(rid)}">${esc(label)}</option>`);
-        });
-      select.innerHTML = options.join("");
-      if (customSelects[select.id]) customSelects[select.id].refresh();
+      for (const r of issues) { const rid = String(r.rule_id || ""); if (rid && !map.has(rid)) map.set(rid, ruleOptionLabel(r)); }
+      const opts = ['<option value="">全部规则</option>'];
+      Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "zh-CN")).forEach(([rid, label]) => { opts.push(`<option value="${esc(rid)}">${esc(label)}</option>`); });
+      sel.innerHTML = opts.join("");
+      if (customSelects[sel.id]) customSelects[sel.id].refresh();
     }
 
     function renderInputFiles() {
       const root = document.getElementById("inputFilesList");
-      if (!inputFiles.length) {
-        root.innerHTML = "<li>无输入文件信息</li>";
-        return;
-      }
-      root.innerHTML = inputFiles.map((f) => {
+      if (!inputFiles.length) { root.innerHTML = '<li class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-400">无输入文件信息</li>'; return; }
+      root.innerHTML = inputFiles.map((f, fi) => {
         const sheets = Array.isArray(f.sheets) ? f.sheets : [];
-        const warns = Array.isArray(f.parse_warnings) ? f.parse_warnings : [];
-        const notes = Array.isArray(f.parse_notes) ? f.parse_notes : [];
-        const sheetText = sheets.length
-          ? sheets.map((s) => `${s.sheet || "-"}:约${s.row_count_estimate || 0}行`).join("；")
-          : "无工作表信息";
-        const extraText = [
-          warns.length ? `告警 ${warns.length} 条` : "",
-          notes.length ? `说明 ${notes.length} 条` : "",
-        ].filter(Boolean).join("；");
-        const detailText = warns.concat(notes).slice(0, 2).join("；");
-        return `
-          <li>
-            <div class="title">${esc(f.name || "-")}</div>
-            <div>${esc((f.extension || "").replace(".", "").toUpperCase())} · ${Number(f.size_bytes || 0)} B · ${Number(f.sheet_count || 0)} 表</div>
-            <div>${esc(sheetText)}</div>
-            ${extraText ? `<div>${esc(extraText)}</div>` : ""}
-            ${detailText ? `<div style="color:var(--muted);margin-top:2px">${esc(detailText)}</div>` : ""}
-          </li>
-        `;
+        const ext = (f.extension || "").replace(".", "").toUpperCase();
+        const sizeStr = Number(f.size_bytes || 0) >= 1048576
+          ? (Number(f.size_bytes) / 1048576).toFixed(1) + " MB"
+          : Number(f.size_bytes || 0) >= 1024
+            ? (Number(f.size_bytes) / 1024).toFixed(1) + " KB"
+            : Number(f.size_bytes || 0) + " B";
+        const ruleSheets = sheets.filter(s => ruleSheetSet.has((f.name || "") + "|||" + (s.sheet || "")));
+        const otherSheets = sheets.filter(s => !ruleSheetSet.has((f.name || "") + "|||" + (s.sheet || "")));
+        const ruleSheetsHtml = ruleSheets.length
+          ? `<div class="flex flex-wrap gap-1.5 mt-2">
+              <span class="text-[10px] text-brand-500 font-semibold shrink-0 leading-[22px]">检查页签</span>
+              ${ruleSheets.map(s =>
+                `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 border border-brand-200 text-[10px] text-brand-700 font-semibold">${esc(s.sheet || "-")}<span class="text-brand-400 font-normal">${s.row_count_estimate ? s.row_count_estimate + " 行" : ""}</span></span>`
+              ).join("")}
+            </div>`
+          : "";
+        const otherId = `otherSheets_${fi}`;
+        const otherSheetsHtml = otherSheets.length
+          ? `<div class="mt-1.5">
+              <button type="button" onclick="document.getElementById('${otherId}').classList.toggle('hidden');this.querySelector('.arrow').classList.toggle('rotate-90')" class="text-[10px] text-slate-400 hover:text-slate-500 cursor-pointer flex items-center gap-1">
+                <svg class="arrow w-3 h-3 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                其他页签 (${otherSheets.length})
+              </button>
+              <div id="${otherId}" class="hidden flex flex-wrap gap-1 mt-1">${otherSheets.map(s =>
+                `<span class="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-[10px] text-slate-400 font-medium">${esc(s.sheet || "-")}</span>`
+              ).join("")}</div>
+            </div>`
+          : "";
+        return `<li class="p-2.5 rounded-lg border border-slate-200 bg-white text-[11px] text-slate-500 leading-relaxed">
+          <div class="text-slate-800 font-bold text-[12px] leading-snug">${esc(f.name || "-")}</div>
+          <div class="flex items-center gap-1.5 mt-1">
+            <span class="px-1.5 py-0.5 rounded bg-brand-50 text-brand-600 font-semibold text-[10px]">${esc(ext)}</span>
+            <span class="text-[10px] text-slate-400">${sizeStr}</span>
+            <span class="text-[10px] text-slate-300">·</span>
+            <span class="text-[10px] text-slate-400">${sheets.length} 表</span>
+          </div>
+          ${ruleSheetsHtml}
+          ${otherSheetsHtml}
+        </li>`;
       }).join("");
     }
 
-    function applyRuleFromCatalog(ruleId) {
-      state.rule = String(ruleId || "");
-      document.getElementById("ruleFilter").value = state.rule;
-      render();
+    function renderRuleDetails() {
+      const root = document.getElementById("ruleDetailsList");
+      const countEl = document.getElementById("ruleDetailsCount");
+      if (!root) return;
+      if (countEl) countEl.textContent = `${ruleCatalog.length} 条`;
+      if (!ruleCatalog.length) {
+        root.innerHTML = '<li class="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-400">无规则信息</li>';
+        return;
+      }
+      // 按 rule_group_zh 分组
+      const groupMap = new Map();
+      for (const r of ruleCatalog) {
+        const g = r.rule_group_zh || r.rule_group || "其他";
+        if (!groupMap.has(g)) groupMap.set(g, []);
+        groupMap.get(g).push(r);
+      }
+      const groupColors = {
+        "结构校验": "bg-blue-50 text-blue-600 border-blue-200",
+        "行级校验": "bg-emerald-50 text-emerald-600 border-emerald-200",
+        "关联校验": "bg-purple-50 text-purple-600 border-purple-200",
+        "聚合校验": "bg-amber-50 text-amber-600 border-amber-200",
+        "全局校验": "bg-rose-50 text-rose-600 border-rose-200",
+      };
+      let html = "";
+      for (const [group, rules] of groupMap.entries()) {
+        const colorCls = groupColors[group] || "bg-slate-50 text-slate-600 border-slate-200";
+        html += `<li class="mb-2">
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold border ${colorCls}">${esc(group)}</span>
+            <span class="text-[10px] text-slate-300 font-medium">${rules.length} 条</span>
+          </div>
+          <div class="space-y-1">
+            ${rules.map(r => `<div class="p-2 rounded-lg border border-slate-100 bg-white hover:border-brand-200 transition-colors">
+              <div class="flex items-start gap-1.5">
+                <span class="text-[12px] font-semibold text-slate-800 leading-snug">${esc(r.rule_title || r.rule_id || "-")}</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="font-mono text-[10px] text-slate-400">${esc(r.rule_id || "-")}</span>
+              </div>
+              ${r.rule_desc ? `<div class="mt-1 pt-1 border-t border-slate-50 text-[11px] text-slate-500 leading-relaxed">${esc(r.rule_desc)}</div>` : ""}
+            </div>`).join("")}
+          </div>
+        </li>`;
+      }
+      root.innerHTML = html;
     }
 
     function renderRuleCatalog() {
-      const root = document.getElementById("ruleCatalogList");
-      if (!ruleCatalog.length) {
-        root.innerHTML = "<li>无规则目录信息</li>";
-        return;
+      const scroller = document.getElementById("ruleCatalogScroller");
+      if (!scroller) return;
+      let chips = "";
+      if (ruleCatalog.length) {
+        chips = ruleCatalog.map(r => {
+          const title = esc(r.rule_title || r.rule_id || "-");
+          const rid = esc(r.rule_id || "-");
+          const group = esc(r.rule_group_zh || "");
+          const desc = esc(r.rule_desc || "");
+          return `<span class="rule-chip shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold cursor-pointer border border-slate-200 bg-white text-slate-600 whitespace-nowrap" data-rule-id="${esc(r.rule_id || "")}" data-rule-tip="1" data-r-title="${title}" data-r-id="${rid}" data-r-group="${group}" data-r-desc="${desc}">
+            ${group ? `<span class="text-brand-500 font-bold">${group}</span><span class="text-slate-300">·</span>` : ""}${title}
+          </span>`;
+        }).join("");
       }
-      root.innerHTML = ruleCatalog.map((r) => {
-        const title = r.rule_title || r.rule_id || "-";
-        const group = r.rule_group_zh || "规则组";
-        const rid = r.rule_id || "-";
-        const desc = r.rule_desc || "";
-        return `
-        <li class="rule-item" data-rule-id="${esc(r.rule_id || "")}">
-          <div class="title">${esc(title)}</div>
-          <div><span style="color:var(--sage);font-weight:600">${esc(group)}</span> · <span style="font-family:var(--font-mono)">${esc(rid)}</span></div>
-          ${desc ? `<div class="rule-desc-text">${esc(desc)}</div>` : ""}
-        </li>
-      `;}).join("");
+      scroller.innerHTML = chips;
     }
 
+    function scrollRuleCatalog(delta) {
+      const el = document.getElementById("ruleCatalogScroller");
+      if (el) el.scrollBy({ left: delta, behavior: "smooth" });
+    }
+
+    function onRuleCatalogClick(e) {
+      const chip = e.target.closest(".rule-chip");
+      if (!chip) return;
+      const ruleId = chip.getAttribute("data-rule-id") || "";
+      document.getElementById("ruleFilter").value = ruleId;
+      state.rule = ruleId;
+      // Update active chip style for all chips (including fixed allRulesChip)
+      const allChip = document.getElementById("allRulesChip");
+      document.querySelectorAll("#ruleCatalogScroller .rule-chip").forEach(c => {
+        c.classList.remove("rule-chip-active");
+        c.classList.add("bg-white", "text-slate-600", "border-slate-200");
+      });
+      if (allChip) {
+        allChip.classList.remove("rule-chip-active");
+        allChip.classList.add("bg-white", "text-slate-600", "border-slate-200");
+      }
+      chip.classList.add("rule-chip-active");
+      chip.classList.remove("bg-white", "text-slate-600", "border-slate-200");
+      render();
+    }
+
+    /* ── Filter / Sort ── */
     function sortRows(rows) {
       const out = rows.slice();
-      if (state.sortBy === "rule") {
-        out.sort((a, b) => ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN"));
-      } else if (state.sortBy === "location") {
-        out.sort((a, b) => {
-          const fa = String(a.file || "");
-          const fb = String(b.file || "");
-          if (fa !== fb) return fa.localeCompare(fb, "zh-CN");
-          const sa = String(a.sheet || "");
-          const sb = String(b.sheet || "");
-          if (sa !== sb) return sa.localeCompare(sb, "zh-CN");
-          return Number(a.row || 0) - Number(b.row || 0);
-        });
-      } else {
-        out.sort((a, b) => {
-          const ra = rank[sevKey(a.severity)] ?? 9;
-          const rb = rank[sevKey(b.severity)] ?? 9;
-          if (ra !== rb) return ra - rb;
-          return ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN");
-        });
-      }
+      if (state.sortBy === "rule") out.sort((a, b) => ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN"));
+      else if (state.sortBy === "location") out.sort((a, b) => { const fa = String(a.file || ""), fb = String(b.file || ""); if (fa !== fb) return fa.localeCompare(fb, "zh-CN"); const sa = String(a.sheet || ""), sb = String(b.sheet || ""); if (sa !== sb) return sa.localeCompare(sb, "zh-CN"); return Number(a.row || 0) - Number(b.row || 0); });
+      else out.sort((a, b) => { const ra = rank[sevKey(a.severity)] ?? 9, rb = rank[sevKey(b.severity)] ?? 9; if (ra !== rb) return ra - rb; return ruleOptionLabel(a).localeCompare(ruleOptionLabel(b), "zh-CN"); });
       return out;
     }
 
     function filterRows() {
-      const keyword = state.keyword.toLowerCase();
-      const rows = issues.filter((row) => {
-        const rid = String(row.rule_id || "");
-        if (state.rule && rid !== state.rule) return false;
+      const kw = state.keyword.toLowerCase();
+      return sortRows(issues.filter(row => {
+        if (state.rule && String(row.rule_id || "") !== state.rule) return false;
         if (state.severity !== "all" && sevKey(row.severity) !== state.severity) return false;
-        if (keyword) {
-          const bag = [
-            row.rule_id, row.rule_title, row.rule_desc,
-            row.message_zh, row.message, row.file, row.sheet, row.column, row.expected, row.actual
-          ].map((x) => String(x || "").toLowerCase()).join("\n");
-          if (!bag.includes(keyword)) return false;
-        }
+        if (kw) { const bag = [row.rule_id, row.rule_title, row.rule_desc, row.message_zh, row.message, row.file, row.sheet, row.row, row.column, row.cell, row.expected, row.actual, row.severity_zh, row.severity, row.category_zh, row.category, row.rule_group_zh, row.rule_group, locationText(row)].map(x => String(x || "").toLowerCase()).join("\n"); if (!bag.includes(kw)) return false; }
         return true;
-      });
-      return sortRows(rows);
+      }));
     }
 
     function buildGroups(rows) {
       const map = new Map();
       for (const row of rows) {
-        const key = [
-          row.category_zh || row.category || "未知",
-          row.file || "-",
-          row.sheet || "-",
-          row.rule_id || "UNKNOWN",
-          sevKey(row.severity),
-        ].join("|||");
-        if (!map.has(key)) {
-          map.set(key, {
-            category: String(row.category_zh || row.category || "未知"),
-            file: String(row.file || "-"),
-            sheet: String(row.sheet || "-"),
-            ruleId: String(row.rule_id || "UNKNOWN"),
-            ruleTitle: String(row.rule_title || row.rule_id || "未知规则"),
-            severity: sevKey(row.severity),
-            severityLabel: String(row.severity_zh || sevLabel(row.severity)),
-            rows: [],
-          });
-        }
+        const key = [row.category_zh || row.category || "未知", row.file || "-", row.sheet || "-", row.rule_id || "UNKNOWN", sevKey(row.severity)].join("|||");
+        if (!map.has(key)) map.set(key, { category: String(row.category_zh || row.category || "未知"), file: String(row.file || "-"), sheet: String(row.sheet || "-"), ruleId: String(row.rule_id || "UNKNOWN"), ruleTitle: String(row.rule_title || row.rule_id || "未知规则"), severity: sevKey(row.severity), severityLabel: String(row.severity_zh || sevLabel(row.severity)), rows: [] });
         map.get(key).rows.push(row);
       }
       const groups = Array.from(map.values());
-      groups.sort((a, b) => {
-        const ra = rank[a.severity] ?? 9;
-        const rb = rank[b.severity] ?? 9;
-        if (ra !== rb) return ra - rb;
-        if (a.category !== b.category) return a.category.localeCompare(b.category, "zh-CN");
-        if (a.file !== b.file) return a.file.localeCompare(b.file, "zh-CN");
-        if (a.sheet !== b.sheet) return a.sheet.localeCompare(b.sheet, "zh-CN");
-        return a.ruleTitle.localeCompare(b.ruleTitle, "zh-CN");
-      });
+      groups.sort((a, b) => { const ra = rank[a.severity] ?? 9, rb = rank[b.severity] ?? 9; if (ra !== rb) return ra - rb; if (a.category !== b.category) return a.category.localeCompare(b.category, "zh-CN"); if (a.file !== b.file) return a.file.localeCompare(b.file, "zh-CN"); if (a.sheet !== b.sheet) return a.sheet.localeCompare(b.sheet, "zh-CN"); return a.ruleTitle.localeCompare(b.ruleTitle, "zh-CN"); });
       return groups;
     }
 
+    /* ── Rendering ── */
     function renderStats(rows) {
       const count = { error: 0, warn: 0, info: 0 };
-      for (const row of rows) count[sevKey(row.severity)] += 1;
+      for (const r of rows) count[sevKey(r.severity)] += 1;
       document.getElementById("totalCount").textContent = String(rows.length);
       document.getElementById("errorCount").textContent = String(count.error);
       document.getElementById("warnCount").textContent = String(count.warn);
       document.getElementById("infoCount").textContent = String(count.info);
-
-      const snapshot = {
-        错误: count.error,
-        警告: count.warn,
-        信息: count.info,
-        分组数: buildGroups(rows).length,
-      };
-      document.getElementById("snapshotPanel").textContent = JSON.stringify(snapshot, null, 2);
+      document.getElementById("snapshotPanel").textContent = JSON.stringify({ 错误: count.error, 警告: count.warn, 信息: count.info, 分组数: buildGroups(rows).length }, null, 2);
     }
 
     function renderPills(rows) {
       const byCat = new Map();
-      for (const row of rows) {
-        const cat = String(row.category_zh || row.category || "未知");
-        byCat.set(cat, (byCat.get(cat) || 0) + 1);
-      }
-      const html = Array.from(byCat.entries()).map(([cat, n]) => `<span class="pill">${esc(cat)}：${n}</span>`).join("");
-      document.getElementById("groupPills").innerHTML = html;
-    }
-
-    function renderPagination(totalRows) {
-      const wrap = document.getElementById("paginationWrap");
-      const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
-      if (totalRows <= PAGE_SIZE || state.viewMode === "grouped") {
-        wrap.hidden = true;
-        return;
-      }
-      wrap.hidden = false;
-      if (state.page > totalPages) state.page = totalPages;
-
-      let html = `<button onclick="goPage(${state.page - 1})" ${state.page <= 1 ? 'disabled' : ''}>‹</button>`;
-
-      const maxVisible = 7;
-      let startPage = Math.max(1, state.page - Math.floor(maxVisible / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-      if (endPage - startPage < maxVisible - 1) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
-      }
-
-      if (startPage > 1) {
-        html += `<button onclick="goPage(1)">1</button>`;
-        if (startPage > 2) html += `<span class="page-info">…</span>`;
-      }
-
-      for (let i = startPage; i <= endPage; i++) {
-        html += `<button class="${i === state.page ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
-      }
-
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) html += `<span class="page-info">…</span>`;
-        html += `<button onclick="goPage(${totalPages})">${totalPages}</button>`;
-      }
-
-      html += `<button onclick="goPage(${state.page + 1})" ${state.page >= totalPages ? 'disabled' : ''}>›</button>`;
-      html += `<span class="page-info">${state.page}/${totalPages} 页</span>`;
-
-      wrap.innerHTML = html;
-    }
-
-    function goPage(p) {
-      const totalPages = Math.max(1, Math.ceil(currentRows.length / PAGE_SIZE));
-      state.page = Math.max(1, Math.min(p, totalPages));
-      renderFlat(currentRows);
-      renderPagination(currentRows.length);
-      document.getElementById("tableWrap").scrollTop = 0;
-    }
-
-    /* ── Highlight column names in message text ── */
-    function highlightColumnNames(text, colName) {
-      if (!text || !colName) return esc(text);
-      const escaped = esc(text);
-      const colEsc = esc(colName);
-      if (!colEsc) return escaped;
-      const re = new RegExp(colEsc.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-      return escaped.replace(re, `<span class="col-highlight">${colEsc}</span>`);
+      for (const r of rows) { const cat = String(r.category_zh || r.category || "未知"); byCat.set(cat, (byCat.get(cat) || 0) + 1); }
+      document.getElementById("groupPills").innerHTML = Array.from(byCat.entries()).map(([cat, n]) => `<span class="px-3 py-1 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 whitespace-nowrap">${esc(cat)}：${n}</span>`).join("");
     }
 
     function renderFlat(rows) {
       const tbody = document.querySelector("#issueTable tbody");
       const empty = document.getElementById("emptyState");
       document.getElementById("groupEmpty").hidden = true;
-      if (!rows.length) {
-        tbody.innerHTML = "";
-        empty.hidden = false;
-        return;
-      }
+      if (!rows.length) { tbody.innerHTML = ""; empty.hidden = false; return; }
       empty.hidden = true;
-
       const start = (state.page - 1) * PAGE_SIZE;
       const pageRows = rows.slice(start, start + PAGE_SIZE);
-
-      tbody.innerHTML = pageRows.map((row) => {
+      tbody.innerHTML = pageRows.map(row => {
+        const sk = sevKey(row.severity);
         const ruleTitle = esc(row.rule_title || row.rule_id || "-");
         const ruleIdLine = esc(row.rule_id || "-") + " · " + esc(row.rule_group_zh || "");
-        const locText = esc(locationText(row));
-        const locHtml = locationHtml(row);
         const rawMsg = row.message_zh || row.message || "";
-        const colName = row.column || "";
-        const msgHtml = highlightColumnNames(rawMsg, colName);
-        const msgText = esc(rawMsg);
-        const expectText = esc(row.expected || "-");
-        const actualText = esc(row.actual || "-");
-        return `
-        <tr>
-          <td><span class="sev ${sevKey(row.severity)}">${esc(row.severity_zh || sevLabel(row.severity))}</span></td>
-          <td>
-            <div class="rule-main" data-tip="${ruleTitle}">${ruleTitle}</div>
-            <div class="rule-sub" data-tip="${ruleIdLine}">${ruleIdLine}</div>
+        const msgHtml = highlightColumnNames(rawMsg, row.column || "");
+        return `<tr class="transition-colors hover:bg-brand-50/30 border-b border-slate-100">
+          <td class="px-3 py-2 align-top"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap border ${sevClasses[sk]}">${esc(row.severity_zh || sevLabel(row.severity))}</span></td>
+          <td class="px-3 py-2 align-top">
+            <div class="font-semibold text-slate-800 text-[12px] leading-snug" data-tip="${ruleTitle}">${ruleTitle}</div>
+            <div class="text-slate-400 text-[10px] mt-0.5 font-mono" data-tip="${ruleIdLine}">${ruleIdLine}</div>
           </td>
-          <td><span class="loc" data-tip="${locText}">${locHtml}</span></td>
-          <td><div class="ellipsis" data-tip="${msgText}">${msgHtml}</div></td>
-          <td><div class="ellipsis" data-tip="${expectText}">${expectText}</div></td>
-          <td><div class="ellipsis" data-tip="${actualText}">${actualText}</div></td>
-        </tr>
-      `;}).join("");
+          <td class="px-3 py-2 align-top"><span class="text-[11px] font-mono text-slate-500 leading-relaxed" data-tip="${esc(locationText(row))}">${locationHtml(row)}</span></td>
+          <td class="px-3 py-2 align-top"><div class="text-[12px] text-slate-700 leading-relaxed break-words" data-tip="${esc(rawMsg)}">${msgHtml}</div></td>
+          <td class="px-3 py-2 align-top"><div class="text-[12px] text-slate-500 leading-relaxed break-words" data-tip="${esc(row.expected || "-")}">${esc(row.expected || "-")}</div></td>
+          <td class="px-3 py-2 align-top"><div class="text-[12px] text-red-500 font-bold leading-relaxed break-words" data-tip="${esc(row.actual || "-")}">${esc(row.actual || "-")}</div></td>
+        </tr>`;
+      }).join("");
     }
 
     const GROUP_PAGE_SIZE = 200;
@@ -1890,182 +821,237 @@
       document.getElementById("emptyState").hidden = true;
       const groups = buildGroups(rows);
       groupState.allGroups = groups;
-
       const flatItems = [];
-      for (const g of groups) {
-        for (const r of g.rows) {
-          flatItems.push({ group: g, row: r });
-        }
-      }
+      for (const g of groups) for (const r of g.rows) flatItems.push({ group: g, row: r });
       groupState.totalRows = flatItems.length;
-
-      if (!flatItems.length) {
-        board.innerHTML = "";
-        empty.hidden = false;
-        document.getElementById("groupPaginationWrap").hidden = true;
-        return;
-      }
+      if (!flatItems.length) { board.innerHTML = ""; empty.hidden = false; document.getElementById("groupPaginationWrap").hidden = true; return; }
       empty.hidden = true;
-
       const totalPages = Math.max(1, Math.ceil(flatItems.length / GROUP_PAGE_SIZE));
       if (groupState.page > totalPages) groupState.page = totalPages;
       const start = (groupState.page - 1) * GROUP_PAGE_SIZE;
       const pageItems = flatItems.slice(start, start + GROUP_PAGE_SIZE);
-
       const orderedGroups = new Map();
-      for (const item of pageItems) {
-        const gKey = item.group.ruleId + "|||" + item.group.file + "|||" + item.group.sheet;
-        if (!orderedGroups.has(gKey)) {
-          orderedGroups.set(gKey, { group: item.group, rows: [] });
-        }
-        orderedGroups.get(gKey).rows.push(item.row);
+      for (const item of pageItems) { const gKey = item.group.ruleId + "|||" + item.group.file + "|||" + item.group.sheet; if (!orderedGroups.has(gKey)) orderedGroups.set(gKey, { group: item.group, rows: [] }); orderedGroups.get(gKey).rows.push(item.row); }
+
+      // 按 category 分类
+      const categoryMap = new Map();
+      for (const { group: g, rows: gRows } of orderedGroups.values()) {
+        const cat = g.category || "未知";
+        if (!categoryMap.has(cat)) categoryMap.set(cat, []);
+        categoryMap.get(cat).push({ group: g, rows: gRows });
       }
 
-      board.innerHTML = Array.from(orderedGroups.values()).map(({ group: g, rows: gRows }) => {
-        const ruleDesc = esc(g.rows[0]?.rule_desc || g.rows[0]?.message_zh || g.rows[0]?.message || "");
-        const colName = g.rows[0]?.column || "";
-        const descHtml = ruleDesc ? highlightColumnNames(g.rows[0]?.rule_desc || g.rows[0]?.message_zh || g.rows[0]?.message || "", colName) : "";
-        const details = gRows.map((r) => {
-          const rowNo = r.row || "-";
-          const col = r.column ? `列「${esc(r.column)}」` : "";
-          const actualVal = esc(r.actual || "-");
-          const rawMsg = r.message_zh || r.message || "";
-          const msgHtml = highlightColumnNames(rawMsg, r.column || "");
-          return `
-          <li class="g-item">
-            <span class="g-row-no"><b style="color:var(--forest)">行 ${esc(String(rowNo))}</b>${col ? ` / <b style="color:var(--bark)">${col}</b>` : ""}</span>
-            <span class="g-msg-cell" data-tip="${esc(rawMsg)}">${msgHtml}</span>
-            <span class="g-expect-cell" data-tip="${esc(r.expected || "-")}">${esc(r.expected || "-")}</span>
-            <span class="g-actual" data-tip="实际值: ${actualVal}">${actualVal}</span>
-          </li>
-        `;}).join("");
-        const catText = esc(g.category);
-        const locLabel = esc(g.file) + " / " + esc(g.sheet);
-        const ruleTitleText = esc(g.ruleTitle);
-        return `
-          <section class="g-card">
-            <header class="g-head">
-              <div class="g-meta">
-                <span class="sev ${g.severity}">${esc(g.severityLabel)}</span>
-                <span class="g-badge" data-tip="${catText}">${catText}</span>
-                <span class="g-badge" data-tip="${locLabel}">${locLabel}</span>
-                <span class="g-badge" data-tip="${ruleTitleText}">${ruleTitleText}</span>
-              </div>
-              <span class="g-badge">${g.rows.length} 条</span>
-            </header>
-            ${descHtml ? `<div class="g-desc">${descHtml}</div>` : ""}
-            <div class="g-list-header"><span>位置</span><span>问题描述</span><span>期望值</span><span>实际值</span></div>
-            <ul class="g-list">${details}</ul>
-          </section>
-        `;
-      }).join("");
+      let html = "";
+      let catIdx = 0;
+      for (const [cat, catGroups] of categoryMap.entries()) {
+        const catId = `grpCat_${catIdx++}`;
+        const totalInCat = catGroups.reduce((s, g) => s + g.rows.length, 0);
+        html += `<div class="mb-4">
+          <div class="flex items-center gap-2 cursor-pointer select-none px-2 py-2 rounded-lg hover:bg-slate-50 transition-colors" onclick="toggleGroupCategory('${catId}')">
+            <svg id="${catId}_icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-slate-400 transition-transform"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="text-[13px] font-bold text-slate-700">${esc(cat)}</span>
+            <span class="text-[11px] text-slate-400 font-medium">${catGroups.length} 组 · ${totalInCat} 条</span>
+          </div>
+          <div id="${catId}_body" class="space-y-3 mt-1">`;
 
+        for (const { group: g, rows: gRows } of catGroups) {
+          const colName = g.rows[0]?.column || "";
+          const descHtml = g.rows[0]?.rule_desc || g.rows[0]?.message_zh || g.rows[0]?.message || "";
+          const descRendered = descHtml ? highlightColumnNames(descHtml, colName) : "";
+          const detailRows = gRows.map(r => {
+            const rowNo = r.row || "-";
+            const col = r.column ? `列「${esc(r.column)}」` : "";
+            const rawMsg = r.message_zh || r.message || "";
+            const msgHtml = highlightColumnNames(rawMsg, r.column || "");
+            return `<tr class="border-t border-slate-100 transition-colors hover:bg-brand-50/20">
+              <td class="px-3 py-2 align-top text-[12px] font-mono whitespace-nowrap"><span class="text-brand-600 font-semibold text-[11px]">行 ${esc(String(rowNo))}</span>${col ? ` <span class="text-slate-300 mx-0.5">/</span> <span class="text-slate-500 font-medium text-[11px] bg-brand-50 px-1.5 py-0.5 rounded">${col}</span>` : ""}</td>
+              <td class="px-3 py-2 align-top text-[12px] text-slate-700 leading-relaxed break-words" data-tip="${esc(rawMsg)}">${msgHtml}</td>
+              <td class="px-3 py-2 align-top text-[11px] text-slate-400 leading-relaxed break-words" data-tip="${esc(r.expected || "-")}">${esc(r.expected || "-")}</td>
+              <td class="px-3 py-2 align-top text-[12px] text-red-500 font-bold leading-relaxed break-words text-right" data-tip="实际值: ${esc(r.actual || "-")}">${esc(r.actual || "-")}</td>
+            </tr>`;
+          }).join("");
+
+          html += `<section class="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm transition-all hover:shadow-md hover:border-brand-200">
+            <header class="px-4 py-2.5 flex justify-between gap-2 items-center border-b border-slate-100 bg-slate-50/80 text-[12px] font-bold">
+              <div class="flex flex-wrap gap-1.5 items-center min-w-0">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap border ${sevClasses[g.severity]}">${esc(g.severityLabel)}</span>
+                <span class="px-2.5 py-0.5 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500" data-tip="${esc(g.file)} / ${esc(g.sheet)}">${esc(g.file)} / ${esc(g.sheet)}</span>
+                <span class="px-2.5 py-0.5 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500" data-tip="${esc(g.ruleTitle)}">${esc(g.ruleTitle)}</span>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full border border-slate-200 bg-white text-[11px] font-semibold text-slate-500 shrink-0">${g.rows.length} 条</span>
+            </header>
+            ${descRendered ? `<div class="px-4 py-2 text-[12px] text-slate-500 bg-brand-50/30 border-b border-slate-100 leading-relaxed">${descRendered}</div>` : ""}
+            <table class="w-full border-collapse text-[12px]">
+              <thead>
+                <tr class="border-b border-slate-100 bg-slate-50/50">
+                  <th class="px-3 py-1.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">位置</th>
+                  <th class="px-3 py-1.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap" style="width:40%">问题描述</th>
+                  <th class="px-3 py-1.5 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">期望值</th>
+                  <th class="px-3 py-1.5 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap" style="width:80px">实际值</th>
+                </tr>
+              </thead>
+              <tbody>${detailRows}</tbody>
+            </table>
+          </section>`;
+        }
+        html += `</div></div>`;
+      }
+      board.innerHTML = html;
       renderGroupPagination(flatItems.length);
+    }
+
+    function toggleGroupCategory(catId) {
+      const body = document.getElementById(catId + "_body");
+      const icon = document.getElementById(catId + "_icon");
+      if (!body) return;
+      if (body.style.display === "none") {
+        body.style.display = "";
+        if (icon) icon.style.transform = "";
+      } else {
+        body.style.display = "none";
+        if (icon) icon.style.transform = "rotate(-90deg)";
+      }
+    }
+
+    /* ── Pagination ── */
+    function makePaginationHtml(currentPage, totalPages, goFn) {
+      let h = `<button onclick="${goFn}(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''} class="min-w-[32px] h-8 px-2 rounded-lg text-[12px] font-semibold bg-white text-slate-400 border border-slate-200 cursor-pointer transition-all hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 disabled:opacity-30 disabled:cursor-default">‹</button>`;
+      const maxV = 7;
+      let sp = Math.max(1, currentPage - Math.floor(maxV / 2));
+      let ep = Math.min(totalPages, sp + maxV - 1);
+      if (ep - sp < maxV - 1) sp = Math.max(1, ep - maxV + 1);
+      if (sp > 1) { h += `<button onclick="${goFn}(1)" class="min-w-[32px] h-8 px-2 rounded-lg text-[12px] font-semibold bg-white text-slate-500 border border-slate-200 cursor-pointer transition-all hover:bg-brand-50 hover:text-brand-600">1</button>`; if (sp > 2) h += `<span class="text-slate-300 text-[11px] mx-1">…</span>`; }
+      for (let i = sp; i <= ep; i++) h += `<button class="min-w-[32px] h-8 px-2 rounded-lg text-[12px] font-semibold cursor-pointer transition-all ${i === currentPage ? 'bg-brand-500 text-white border-transparent shadow-sm' : 'bg-white text-slate-500 border border-slate-200 hover:bg-brand-50 hover:text-brand-600'}" onclick="${goFn}(${i})">${i}</button>`;
+      if (ep < totalPages) { if (ep < totalPages - 1) h += `<span class="text-slate-300 text-[11px] mx-1">…</span>`; h += `<button onclick="${goFn}(${totalPages})" class="min-w-[32px] h-8 px-2 rounded-lg text-[12px] font-semibold bg-white text-slate-500 border border-slate-200 cursor-pointer transition-all hover:bg-brand-50 hover:text-brand-600">${totalPages}</button>`; }
+      h += `<button onclick="${goFn}(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} class="min-w-[32px] h-8 px-2 rounded-lg text-[12px] font-semibold bg-white text-slate-400 border border-slate-200 cursor-pointer transition-all hover:bg-brand-50 hover:text-brand-600 hover:border-brand-200 disabled:opacity-30 disabled:cursor-default">›</button>`;
+      return h;
+    }
+
+    function renderPagination(totalRows) {
+      const wrap = document.getElementById("paginationWrap");
+      const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+      if (totalRows <= PAGE_SIZE || state.viewMode === "grouped") { wrap.hidden = true; return; }
+      wrap.hidden = false;
+      if (state.page > totalPages) state.page = totalPages;
+      wrap.innerHTML = makePaginationHtml(state.page, totalPages, "goPage") + `<span class="text-slate-400 text-[11px] ml-2">${state.page}/${totalPages} 页 · 共 ${totalRows} 条</span>`;
+    }
+
+    function goPage(p) {
+      const tp = Math.max(1, Math.ceil(currentRows.length / PAGE_SIZE));
+      state.page = Math.max(1, Math.min(p, tp));
+      renderFlat(currentRows);
+      renderPagination(currentRows.length);
+      document.getElementById("tableWrap").scrollTop = 0;
     }
 
     function renderGroupPagination(totalRows) {
       const wrap = document.getElementById("groupPaginationWrap");
-      const totalPages = Math.max(1, Math.ceil(totalRows / GROUP_PAGE_SIZE));
-      if (totalRows <= GROUP_PAGE_SIZE) {
-        wrap.hidden = true;
-        return;
-      }
+      const tp = Math.max(1, Math.ceil(totalRows / GROUP_PAGE_SIZE));
+      if (totalRows <= GROUP_PAGE_SIZE) { wrap.hidden = true; return; }
       wrap.hidden = false;
-      let html = `<button onclick="goGroupPage(${groupState.page - 1})" ${groupState.page <= 1 ? 'disabled' : ''}>‹</button>`;
-      const maxVisible = 7;
-      let startPage = Math.max(1, groupState.page - Math.floor(maxVisible / 2));
-      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-      if (endPage - startPage < maxVisible - 1) startPage = Math.max(1, endPage - maxVisible + 1);
-      if (startPage > 1) {
-        html += `<button onclick="goGroupPage(1)">1</button>`;
-        if (startPage > 2) html += `<span class="page-info">…</span>`;
-      }
-      for (let i = startPage; i <= endPage; i++) {
-        html += `<button class="${i === groupState.page ? 'active' : ''}" onclick="goGroupPage(${i})">${i}</button>`;
-      }
-      if (endPage < totalPages) {
-        if (endPage < totalPages - 1) html += `<span class="page-info">…</span>`;
-        html += `<button onclick="goGroupPage(${totalPages})">${totalPages}</button>`;
-      }
-      html += `<button onclick="goGroupPage(${groupState.page + 1})" ${groupState.page >= totalPages ? 'disabled' : ''}>›</button>`;
-      html += `<span class="page-info">${groupState.page}/${totalPages} 页 · 共 ${totalRows} 条</span>`;
-      wrap.innerHTML = html;
+      wrap.innerHTML = makePaginationHtml(groupState.page, tp, "goGroupPage") + `<span class="text-slate-400 text-[11px] ml-2">${groupState.page}/${tp} 页 · 共 ${totalRows} 条</span>`;
     }
 
     function goGroupPage(p) {
-      const totalPages = Math.max(1, Math.ceil(groupState.totalRows / GROUP_PAGE_SIZE));
-      groupState.page = Math.max(1, Math.min(p, totalPages));
+      const tp = Math.max(1, Math.ceil(groupState.totalRows / GROUP_PAGE_SIZE));
+      groupState.page = Math.max(1, Math.min(p, tp));
       renderGrouped(currentRows);
       document.getElementById("groupWrap").scrollTop = 0;
     }
 
-    /* ── Global Tooltip (JS-based, escapes overflow containers) ── */
-    const gTip = document.createElement('div');
-    gTip.className = 'g-tooltip';
+    /* ── Tooltip ── */
+    const gTip = document.createElement("div");
+    gTip.className = "g-tooltip";
     document.body.appendChild(gTip);
     let tipTarget = null;
 
-    document.addEventListener('mouseover', (e) => {
-      const el = e.target.closest('[data-tip]');
+    document.addEventListener("mouseover", e => {
+      // 规则chip的富文本tooltip
+      const ruleEl = e.target.closest("[data-rule-tip]");
+      if (ruleEl && ruleEl !== tipTarget) {
+        const title = ruleEl.getAttribute("data-r-title") || "";
+        const rid = ruleEl.getAttribute("data-r-id") || "";
+        const group = ruleEl.getAttribute("data-r-group") || "";
+        const desc = ruleEl.getAttribute("data-r-desc") || "";
+        gTip.className = "g-tooltip g-tooltip-rich";
+        gTip.innerHTML = `<div style="padding:10px 14px;">
+          <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px;">${title}</div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            ${group ? `<span style="font-size:10px;font-weight:600;color:#3b82f6;background:rgba(59,130,246,0.1);padding:1px 6px;border-radius:4px;">${group}</span>` : ""}
+            <span style="font-size:10px;color:#64748b;font-family:monospace;">${rid}</span>
+          </div>
+          ${desc ? `<div style="font-size:11px;color:#475569;line-height:1.6;border-top:1px solid #e2e8f0;padding-top:6px;">${desc}</div>` : ""}
+        </div>`;
+        gTip.style.left = "-9999px"; gTip.style.top = "0";
+        gTip.classList.add("visible");
+        requestAnimationFrame(() => {
+          const r = ruleEl.getBoundingClientRect(), t = gTip.getBoundingClientRect();
+          let top = r.bottom + 6, left = r.left;
+          if (top + t.height > window.innerHeight - 4) top = r.top - t.height - 6;
+          if (left + t.width > window.innerWidth - 4) left = window.innerWidth - t.width - 4;
+          if (left < 4) left = 4;
+          gTip.style.top = top + "px"; gTip.style.left = left + "px";
+        });
+        tipTarget = ruleEl;
+        return;
+      }
+
+      // 普通tooltip
+      const el = e.target.closest("[data-tip]");
       if (!el || el === tipTarget) return;
-      const text = (el.getAttribute('data-tip') || '').trim();
+      const text = (el.getAttribute("data-tip") || "").trim();
       if (!text) return;
       const visible = el.textContent.trim();
       const isTruncated = el.scrollWidth > el.clientWidth + 1;
       const isExplanatory = text !== visible;
-      if (!isTruncated && !isExplanatory) { gTip.classList.remove('visible'); tipTarget = null; return; }
+      if (!isTruncated && !isExplanatory) { gTip.classList.remove("visible"); tipTarget = null; return; }
+      gTip.className = "g-tooltip";
       gTip.textContent = text;
-      gTip.style.left = '-9999px';
-      gTip.style.top = '0';
-      gTip.classList.add('visible');
+      gTip.style.left = "-9999px"; gTip.style.top = "0";
+      gTip.classList.add("visible");
       requestAnimationFrame(() => {
-        const r = el.getBoundingClientRect();
-        const t = gTip.getBoundingClientRect();
-        let top = r.top - t.height - 6;
-        let left = r.left;
+        const r = el.getBoundingClientRect(), t = gTip.getBoundingClientRect();
+        let top = r.top - t.height - 6, left = r.left;
         if (top < 4) top = r.bottom + 6;
         if (left + t.width > window.innerWidth - 4) left = window.innerWidth - t.width - 4;
         if (left < 4) left = 4;
-        gTip.style.top = top + 'px';
-        gTip.style.left = left + 'px';
+        gTip.style.top = top + "px"; gTip.style.left = left + "px";
       });
       tipTarget = el;
     });
 
-    document.addEventListener('mouseout', (e) => {
-      const el = e.target.closest('[data-tip]');
-      if (el) { gTip.classList.remove('visible'); tipTarget = null; }
-    });
+    document.addEventListener("mouseout", e => { if (e.target.closest("[data-tip]") || e.target.closest("[data-rule-tip]")) { gTip.classList.remove("visible"); gTip.className = "g-tooltip"; tipTarget = null; } });
 
+    /* ── Quick chips ── */
     function updateChips() {
-      document.querySelectorAll("#quickChips .chip").forEach((chip) => {
-        chip.classList.toggle("active", chip.getAttribute("data-sev") === state.severity);
+      document.querySelectorAll("#quickChips .chip-btn").forEach(chip => {
+        const isActive = chip.getAttribute("data-sev") === state.severity;
+        chip.classList.toggle("ring-2", isActive);
+        chip.classList.toggle("ring-brand-300", isActive);
+        chip.classList.toggle("ring-offset-1", isActive);
       });
     }
 
+    /* ── Core render ── */
     function render() {
       syncAllCustomSelects();
       state.page = 1;
       currentRows = filterRows();
       renderStats(currentRows);
       renderPills(currentRows);
-      document.getElementById("liveRegion").textContent = `共 ${currentRows.length} 条`;
+      document.getElementById("liveRegion").textContent = `筛选: ${currentRows.length} 条`;
       document.getElementById("emptyState").hidden = true;
       document.getElementById("groupEmpty").hidden = true;
-
       const tableWrap = document.getElementById("tableWrap");
       const groupWrap = document.getElementById("groupWrap");
       const paginationWrap = document.getElementById("paginationWrap");
       const groupPaginationWrap = document.getElementById("groupPaginationWrap");
       if (state.viewMode === "grouped") {
-        tableWrap.hidden = true;
-        paginationWrap.hidden = true;
-        groupWrap.hidden = false;
-        groupState.page = 1;
+        tableWrap.hidden = true; paginationWrap.hidden = true;
+        groupWrap.hidden = false; groupState.page = 1;
         renderGrouped(currentRows);
       } else {
-        groupWrap.hidden = true;
-        groupPaginationWrap.hidden = true;
+        groupWrap.hidden = true; groupPaginationWrap.hidden = true;
         tableWrap.hidden = false;
         renderFlat(currentRows);
         renderPagination(currentRows.length);
@@ -2078,199 +1064,152 @@
       state.keyword = document.getElementById("keywordFilter").value.trim();
       state.sortBy = document.getElementById("sortBy").value;
       state.viewMode = document.getElementById("viewMode").value;
-      render();
-      updateChips();
+      render(); updateChips();
     }
 
     function resetFilter() {
-      state.rule = "";
-      state.severity = "all";
-      state.keyword = "";
-      state.sortBy = "severity";
-      state.viewMode = "flat";
+      state.rule = ""; state.severity = "all"; state.keyword = ""; state.sortBy = "severity"; state.viewMode = "flat";
       document.getElementById("ruleFilter").value = "";
       document.getElementById("severityFilter").value = "all";
       document.getElementById("keywordFilter").value = "";
       document.getElementById("sortBy").value = "severity";
       document.getElementById("viewMode").value = "flat";
-      render();
-      updateChips();
+      render(); updateChips();
+    }
+
+    /* ── CSV Export with confirmation ── */
+    function confirmExportCsv() {
+      document.getElementById("csvExportCount").textContent = String(currentRows.length);
+      document.getElementById("csvModal").hidden = false;
+    }
+
+    function closeCsvModal(e) {
+      if (e && e.target && !e.target.classList.contains("modal-overlay")) return;
+      document.getElementById("csvModal").hidden = true;
+    }
+
+    function doExportCsv() {
+      document.getElementById("csvModal").hidden = true;
+      downloadCsv();
     }
 
     function downloadCsv() {
-      const head = [
-        "问题ID","严重级别","严重级别代码","问题类别","问题类别代码","规则组","规则组代码","规则ID","规则名称","规则说明",
-        "问题描述","问题描述原文","文件","工作表","行","列","单元格","期望值","实际值"
-      ];
-      const keys = [
-        "issue_id","severity_zh","severity","category_zh","category","rule_group_zh","rule_group","rule_id","rule_title","rule_desc",
-        "message_zh","message","file","sheet","row","column","cell","expected","actual"
-      ];
+      const head = ["问题ID","严重级别","严重级别代码","问题类别","问题类别代码","规则组","规则组代码","规则ID","规则名称","规则说明","问题描述","问题描述原文","文件","工作表","行","列","单元格","期望值","实际值"];
+      const keys = ["issue_id","severity_zh","severity","category_zh","category","rule_group_zh","rule_group","rule_id","rule_title","rule_desc","message_zh","message","file","sheet","row","column","cell","expected","actual"];
       const lines = [head.join(",")];
-      for (const row of currentRows) {
-        const values = keys.map((k) => `"${String(row[k] ?? "").replace(/"/g, '""')}"`);
-        lines.push(values.join(","));
-      }
+      for (const row of currentRows) lines.push(keys.map(k => `"${String(row[k] ?? "").replace(/"/g, '""')}"`).join(","));
       const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "校验问题_当前筛选_中文.csv";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const a = document.createElement("a"); a.href = url; a.download = "校验问题_当前筛选_中文.csv";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }
 
-    /* ── Custom Select Component ── */
+    /* ── Custom Selects (fixed positioning) ── */
     const customSelects = {};
 
     class CustomSelect {
       constructor(selectEl) {
         this.select = selectEl;
-        this.wrap = selectEl.closest('.select-wrap');
+        this.wrap = selectEl.closest(".cs-wrap");
         if (!this.wrap) return;
-
-        this.trigger = document.createElement('div');
-        this.trigger.className = 'cs-trigger';
-
-        this.optionsEl = document.createElement('div');
-        this.optionsEl.className = 'cs-options';
-
+        this.trigger = document.createElement("div");
+        this.trigger.className = "cs-trigger";
+        this.dropdown = document.createElement("div");
+        this.dropdown.className = "cs-dropdown";
         this.wrap.appendChild(this.trigger);
-        this.wrap.appendChild(this.optionsEl);
-
-        this._build();
-        this._sync();
-
-        this.trigger.addEventListener('click', () => {
-          document.querySelectorAll('.select-wrap.cs-open').forEach(w => {
-            if (w !== this.wrap) w.classList.remove('cs-open');
-          });
-          this.wrap.classList.toggle('cs-open');
-          if (this.wrap.classList.contains('cs-open')) this._position();
+        this.wrap.appendChild(this.dropdown);
+        this._build(); this._sync();
+        this.trigger.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const wasOpen = this.wrap.classList.contains("cs-open");
+          document.querySelectorAll(".cs-wrap.cs-open").forEach(w => w.classList.remove("cs-open"));
+          if (!wasOpen) { this.wrap.classList.add("cs-open"); this._position(); }
         });
-
-        this.optionsEl.addEventListener('click', (e) => {
-          const opt = e.target.closest('.cs-option');
+        this.dropdown.addEventListener("click", (e) => {
+          const opt = e.target.closest(".cs-opt");
           if (!opt) return;
           this.select.value = opt.dataset.value;
-          this._build();
-          this._sync();
-          this.wrap.classList.remove('cs-open');
-          this.select.dispatchEvent(new Event('change'));
+          this._build(); this._sync();
+          this.wrap.classList.remove("cs-open");
+          this.select.dispatchEvent(new Event("change"));
         });
       }
-
       _build() {
-        this.optionsEl.innerHTML = Array.from(this.select.options).map(o =>
-          `<div class="cs-option${o.value === this.select.value ? ' cs-selected' : ''}" data-value="${esc(o.value)}" data-tip="${esc(o.textContent)}">${esc(o.textContent)}</div>`
-        ).join('');
+        this.dropdown.innerHTML = Array.from(this.select.options).map(o =>
+          `<div class="cs-opt${o.value === this.select.value ? " cs-active" : ""}" data-value="${esc(o.value)}" data-tip="${esc(o.textContent)}">${esc(o.textContent)}</div>`
+        ).join("");
       }
-
       _sync() {
         const sel = this.select.options[this.select.selectedIndex];
-        const text = sel ? sel.textContent : '';
-        this.trigger.textContent = text;
-        this.trigger.setAttribute('data-tip', text);
+        this.trigger.textContent = sel ? sel.textContent : "";
+        this.trigger.setAttribute("data-tip", sel ? sel.textContent : "");
       }
-
       refresh() { this._build(); this._sync(); }
-
       _position() {
         const r = this.trigger.getBoundingClientRect();
-        const o = this.optionsEl;
-        o.style.left = r.left + 'px';
-        o.style.width = r.width + 'px';
-        o.style.top = r.bottom + 'px';
+        const d = this.dropdown;
+        d.style.width = r.width + "px";
+        d.style.left = r.left + "px";
+        d.style.top = r.bottom + 4 + "px";
+        d.style.maxHeight = "220px";
         requestAnimationFrame(() => {
-          const ob = o.getBoundingClientRect();
-          if (ob.bottom > window.innerHeight - 4) {
-            o.style.top = (r.top - ob.height) + 'px';
-            o.style.borderRadius = '6px 6px 0 0';
-          } else {
-            o.style.borderRadius = '0 0 6px 6px';
+          const db = d.getBoundingClientRect();
+          if (db.bottom > window.innerHeight - 8) {
+            d.style.top = Math.max(4, r.top - db.height - 4) + "px";
           }
         });
       }
     }
 
     function initCustomSelects() {
-      document.querySelectorAll('.select-wrap select').forEach(sel => {
+      document.querySelectorAll(".cs-wrap select").forEach(sel => {
         if (sel.id) customSelects[sel.id] = new CustomSelect(sel);
       });
-      document.addEventListener('click', (e) => {
-        document.querySelectorAll('.select-wrap.cs-open').forEach(w => {
-          if (!w.contains(e.target)) w.classList.remove('cs-open');
-        });
+      document.addEventListener("click", () => {
+        document.querySelectorAll(".cs-wrap.cs-open").forEach(w => w.classList.remove("cs-open"));
       });
     }
 
-    function syncAllCustomSelects() {
-      Object.values(customSelects).forEach(cs => cs.refresh());
-    }
+    function syncAllCustomSelects() { Object.values(customSelects).forEach(cs => cs.refresh()); }
 
-    /* ── Event listeners ── */
+    /* Scroll reposition */
+    document.querySelector(".sidebar")?.addEventListener("scroll", () => {
+      document.querySelectorAll(".cs-wrap.cs-open").forEach(w => {
+        const cs = customSelects[w.querySelector("select")?.id];
+        if (cs) cs._position();
+      });
+    });
+
+    /* ── Event bindings ── */
     document.getElementById("ruleFilter").addEventListener("change", applyFilter);
     document.getElementById("severityFilter").addEventListener("change", applyFilter);
     document.getElementById("viewMode").addEventListener("change", applyFilter);
     document.getElementById("sortBy").addEventListener("change", applyFilter);
-    document.getElementById("ruleCatalogList").addEventListener("click", (e) => {
-      const target = e.target.closest(".rule-item[data-rule-id]");
-      if (!target) return;
-      const rid = target.getAttribute("data-rule-id") || "";
-      document.getElementById("ruleFilter").value = rid;
-      state.rule = rid;
-      render();
-    });
-    document.getElementById("quickChips").addEventListener("click", (e) => {
-      const target = e.target.closest(".chip[data-sev]");
-      if (!target) return;
-      state.severity = target.getAttribute("data-sev") || "all";
+    document.getElementById("ruleCatalogScroller").addEventListener("click", onRuleCatalogClick);
+    document.getElementById("allRulesChip").addEventListener("click", onRuleCatalogClick);
+    // 禁用规则目录滚轮滚动
+    document.getElementById("ruleCatalogScroller").addEventListener("wheel", e => e.preventDefault(), { passive: false });
+    document.getElementById("quickChips").addEventListener("click", e => {
+      const t = e.target.closest("[data-sev]");
+      if (!t) return;
+      state.severity = t.getAttribute("data-sev") || "all";
       document.getElementById("severityFilter").value = state.severity;
-      render();
-      updateChips();
+      render(); updateChips();
     });
-    document.getElementById("keywordFilter").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") applyFilter();
+    // 关键词搜索：实时输入搜索（带防抖）
+    let _kwTimer = null;
+    document.getElementById("keywordFilter").addEventListener("input", () => {
+      clearTimeout(_kwTimer);
+      _kwTimer = setTimeout(() => { applyFilter(); }, 300);
     });
 
     /* ── Init ── */
     populateRuleDropdown();
     initCustomSelects();
     renderInputFiles();
+    renderRuleDetails();
     renderRuleCatalog();
     resetFilter();
-
-    /* ── Column Resize ── */
-    (function initColumnResize() {
-      const table = document.getElementById("issueTable");
-      if (!table) return;
-      const resizers = table.querySelectorAll(".col-resizer");
-      resizers.forEach((resizer) => {
-        const th = resizer.parentElement;
-        let startX, startW;
-        resizer.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          startX = e.pageX;
-          startW = th.offsetWidth;
-          resizer.classList.add("resizing");
-          const onMove = (ev) => {
-            const diff = ev.pageX - startX;
-            const newW = Math.max(40, startW + diff);
-            th.style.width = newW + "px";
-            th.style.minWidth = newW + "px";
-          };
-          const onUp = () => {
-            resizer.classList.remove("resizing");
-            document.removeEventListener("mousemove", onMove);
-            document.removeEventListener("mouseup", onUp);
-          };
-          document.addEventListener("mousemove", onMove);
-          document.addEventListener("mouseup", onUp);
-        });
-      });
-    })();
 
   </script>
 </body>

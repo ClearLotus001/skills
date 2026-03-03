@@ -33,7 +33,7 @@ def iter_rule_items(rules: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
 
 def validate_global(compiled_path: Path, out_dir: Path) -> Path:
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
-    rules = compiled["rules"]
+    rules = compiled.get("rules", {})
     issues: list[dict[str, Any]] = []
 
     try:
@@ -42,19 +42,26 @@ def validate_global(compiled_path: Path, out_dir: Path) -> Path:
             rule_id = str(item.get("rule_id", "")).strip()
             if not rule_id:
                 continue
-            if rule_id in seen_rule_ids and seen_rule_ids[rule_id] != group:
+            if rule_id in seen_rule_ids:
+                prev_group = seen_rule_ids[rule_id]
+                if prev_group == group:
+                    msg = f"规则 ID '{rule_id}' 在 {group} 中重复出现"
+                    actual = f"在 {group} 内重复"
+                else:
+                    msg = f"规则 ID '{rule_id}' 在多个规则组中重复出现"
+                    actual = f"在 {prev_group} 与 {group} 中重复"
                 issues.append(
                     make_issue(
                         category="global",
                         rule_id="GLOBAL_DUPLICATE_RULE_ID",
                         severity="error",
-                        message=f"规则 ID '{rule_id}' 在多个规则组中重复出现",
+                        message=msg,
                         file_name="",
                         sheet="",
                         row=0,
                         column="",
-                        expected="rule_id 在规则组间保持唯一",
-                        actual=f"在 {seen_rule_ids[rule_id]} 与 {group} 中重复",
+                        expected="rule_id 全局唯一",
+                        actual=actual,
                     )
                 )
             else:

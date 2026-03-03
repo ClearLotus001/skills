@@ -138,6 +138,8 @@ SUPPORTED_MODES = {
     "many_to_many", "n:n", "N:N", "m:n", "M:N",
 }
 
+MAX_ISSUES_PER_RULE = 500
+
 
 def _normalize_mode(raw: str) -> str:
     """将模式别名统一为标准名称。"""
@@ -391,6 +393,8 @@ def append_relation_key_issues(
 
         # 流式检查源键是否存在于目标
         target_key_set = set(target_counter.keys())
+        issue_count = 0
+        suppressed = 0
         for chunk in iter_rows_from_entry(source_entry):
             for row_item in chunk:
                 if not isinstance(row_item, dict):
@@ -403,37 +407,60 @@ def append_relation_key_issues(
                 source_value = canonical_key(raw_source_value)
                 if not source_value:
                     if not allow_source_empty:
+                        if issue_count < MAX_ISSUES_PER_RULE:
+                            issues.append(
+                                make_issue(
+                                    category="relation",
+                                    rule_id=rule_id,
+                                    severity=severity,
+                                    message=f"关联键 '{source_key}' 不能为空",
+                                    file_name=source_file_name,
+                                    sheet=source_sheet_name,
+                                    row=row_num,
+                                    column=source_key,
+                                    expected=f"非空且可在 {target_ref} 中找到",
+                                    actual="空值",
+                                )
+                            )
+                        else:
+                            suppressed += 1
+                        issue_count += 1
+                    continue
+                if source_value not in target_key_set:
+                    if issue_count < MAX_ISSUES_PER_RULE:
+                        show_value = value_text(raw_source_value)
                         issues.append(
                             make_issue(
                                 category="relation",
                                 rule_id=rule_id,
                                 severity=severity,
-                                message=f"关联键 '{source_key}' 不能为空",
+                                message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
                                 file_name=source_file_name,
                                 sheet=source_sheet_name,
                                 row=row_num,
                                 column=source_key,
-                                expected=f"非空且可在 {target_ref} 中找到",
-                                actual="空值",
+                                expected=f"存在于 {target_ref}",
+                                actual=show_value,
                             )
                         )
-                    continue
-                if source_value not in target_key_set:
-                    show_value = value_text(raw_source_value)
-                    issues.append(
-                        make_issue(
-                            category="relation",
-                            rule_id=rule_id,
-                            severity=severity,
-                            message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
-                            file_name=source_file_name,
-                            sheet=source_sheet_name,
-                            row=row_num,
-                            column=source_key,
-                            expected=f"存在于 {target_ref}",
-                            actual=show_value,
-                        )
-                    )
+                    else:
+                        suppressed += 1
+                    issue_count += 1
+        if suppressed > 0:
+            issues.append(
+                make_issue(
+                    category="relation",
+                    rule_id=rule_id,
+                    severity=severity,
+                    message=f"规则 '{rule_id}' 共有 {issue_count} 条问题，已展示前 {MAX_ISSUES_PER_RULE} 条，省略 {suppressed} 条",
+                    file_name=source_file_name,
+                    sheet=source_sheet_name,
+                    row=0,
+                    column=source_key,
+                    expected=f"存在于 {target_ref}",
+                    actual=f"共 {issue_count} 条违规",
+                )
+            )
         return
 
     # ---- many_to_many: 双向存在性检查 ----
@@ -478,6 +505,8 @@ def append_relation_key_issues(
 
     # ---- fk_exists: 外键存在性（默认模式，流式处理源行） ----
     target_key_set = _stream_key_set(target_entry, target_key)
+    issue_count = 0
+    suppressed = 0
 
     for chunk in iter_rows_from_entry(source_entry):
         for row_item in chunk:
@@ -492,38 +521,62 @@ def append_relation_key_issues(
             source_value = canonical_key(raw_source_value)
             if not source_value:
                 if not allow_source_empty:
+                    if issue_count < MAX_ISSUES_PER_RULE:
+                        issues.append(
+                            make_issue(
+                                category="relation",
+                                rule_id=rule_id,
+                                severity=severity,
+                                message=f"关联键 '{source_key}' 不能为空",
+                                file_name=source_file_name,
+                                sheet=source_sheet_name,
+                                row=row_num,
+                                column=source_key,
+                                expected=f"非空且可在 {target_ref} 中找到",
+                                actual="空值",
+                            )
+                        )
+                    else:
+                        suppressed += 1
+                    issue_count += 1
+                continue
+
+            if source_value not in target_key_set:
+                if issue_count < MAX_ISSUES_PER_RULE:
+                    show_value = value_text(raw_source_value)
                     issues.append(
                         make_issue(
                             category="relation",
                             rule_id=rule_id,
                             severity=severity,
-                            message=f"关联键 '{source_key}' 不能为空",
+                            message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
                             file_name=source_file_name,
                             sheet=source_sheet_name,
                             row=row_num,
                             column=source_key,
-                            expected=f"非空且可在 {target_ref} 中找到",
-                            actual="空值",
+                            expected=f"存在于 {target_ref}",
+                            actual=show_value,
                         )
                     )
-                continue
+                else:
+                    suppressed += 1
+                issue_count += 1
 
-            if source_value not in target_key_set:
-                show_value = value_text(raw_source_value)
-                issues.append(
-                    make_issue(
-                        category="relation",
-                        rule_id=rule_id,
-                        severity=severity,
-                        message=f"关联键值 '{show_value}' 未在目标键 '{target_ref}' 中找到",
-                        file_name=source_file_name,
-                        sheet=source_sheet_name,
-                        row=row_num,
-                        column=source_key,
-                        expected=f"存在于 {target_ref}",
-                        actual=show_value,
-                    )
-                )
+    if suppressed > 0:
+        issues.append(
+            make_issue(
+                category="relation",
+                rule_id=rule_id,
+                severity=severity,
+                message=f"规则 '{rule_id}' 共有 {issue_count} 条问题，已展示前 {MAX_ISSUES_PER_RULE} 条，省略 {suppressed} 条",
+                file_name=source_file_name,
+                sheet=source_sheet_name,
+                row=0,
+                column=source_key,
+                expected=f"存在于 {target_ref}",
+                actual=f"共 {issue_count} 条违规",
+            )
+        )
 
 
 def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) -> Path:
