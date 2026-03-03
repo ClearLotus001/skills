@@ -150,16 +150,49 @@ python scripts/run_validator.py \
 ```
 
 ## 当前已实现校验
-完整字段定义参考 `references/rule_schema.md`。
-
-- `datasets`：文件/工作表存在性检查，支持 `file`/`file_pattern`/`sha256`/`file_path` 消歧
-- `schema_rules`：列存在性、`required`/`string`/`numeric`/`min_digits`/`increasing`/`unique`/`date`/`datetime_format`/`max_length`/`min_length`/`regex`/`enum`/`positive`/`non_negative`/`conditional_required`
-- `range_rules`：数值/日期范围（`min`/`max`，开闭区间，可空控制）
-- `row_rules`：行表达式断言（`when`/`assert`/`branches`），30+ 内置函数
-- `aggregate_rules`：聚合校验（`sum`/`count`/`avg`/`min`/`max`，支持 `group_by`）
-- `relation_rules`：外键（`fk_exists`）、集合一致性（`set_equal`）、基数约束（`one_to_one`/`one_to_many`/`many_to_many`）
-- `global`：`rule_id` 跨规则组重复检查
-- 报告：`result.json`（结构化）+ `issues.csv`（表格）+ `report.html`（交互式，筛选/排序/分页/搜索）
+- `datasets`：文件/工作表存在性检查（支持 `file` 与 `file_pattern`）。
+  - **同名文件消歧**：当输入目录包含多个同名文件时，引擎自动选择行数最多的版本。可通过 dataset 配置的 `sha256` 或 `file_path` 字段精确指定文件：
+    ```json
+    {
+      "datasets": {
+        "my_dataset": {
+          "file": "配置表.xlsx",
+          "sheet": "Sheet1",
+          "sha256": "35d8dd3b...",
+          "file_path": "subdir/配置表.xlsx"
+        }
+      }
+    }
+    ```
+    优先级：`sha256` 精确匹配 > `file_path` 路径匹配 > 行数最多。
+  - **文件身份追踪**：每个 issue 附带 `file_path`（完整路径）和 `file_sha256`（SHA-256 指纹），CSV/MD 报告中同步展示。
+  - **扫描阶段检测**：`--scan` 模式会检测同名文件冲突，在 `_scan.json` 中输出 `duplicate_file_names` 字段并打印告警。
+- `schema_rules`：
+  - 列存在性检查（缺列）
+  - 行级检查：`required`、`string`、`numeric`、`min_digits`、`increasing`、`unique`
+  - 时间类检查：`date`、`datetime_format`
+  - 文本检查：`max_length`、`min_length`、`regex`
+  - 枚举检查：`enum` / `whitelist`（支持 `case_insensitive`）
+  - 数值检查：`positive`、`non_negative`
+  - 条件检查：`conditional_required`（when 表达式触发）
+- `range_rules`：
+  - 数值范围与日期/时间范围检查（`min`/`max`）
+  - 开闭区间控制（`include_min`/`include_max`）
+  - 可空控制（`allow_empty`）
+- `row_rules`：
+  - 行表达式断言（`assert`）
+  - 条件触发（`when`）
+  - 条件分支（`branches` + `else_assert`）
+  - 内置函数：`value/text/num/intv/empty/exists/match`
+- `relation_rules`：
+  - 数据集/文件/工作表/键列存在性
+  - 外键存在性（`fk_exists`）
+  - 集合一致性（`set_equal`）
+  - 基数约束（`one_to_one`、`one_to_many`、`many_to_many`）
+- `global`：`rule_id` 跨规则组重复检查。
+- 报告：
+  - `result.json` 含严重级别/类别/规则统计与分组摘要
+  - `report.html` 支持明细表/按类别分组双视图、筛选、排序、分页、搜索
 
 ## 当前未完整实现
 - `row_rules` 的结构化 then/else 动作（当前以表达式断言为主）。

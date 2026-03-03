@@ -598,7 +598,6 @@ def render_reports(
     for ds_key, ds_val in ds_cfg.items():
         if isinstance(ds_val, dict) and ds_val.get("file") and ds_val.get("sheet"):
             rule_sheets.append({"file": str(ds_val["file"]), "sheet": str(ds_val["sheet"])})
-
     html_values = {
         "title": "Excel 配置校验报告",
         "generated_at": generated_at_display,
