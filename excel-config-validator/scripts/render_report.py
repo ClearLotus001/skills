@@ -1,4 +1,9 @@
-"""报告渲染与 issue 聚合。"""
+# -*- coding: utf-8 -*-
+"""报告渲染与 issue 聚合。
+
+汇总各阶段的 issue 文件，生成 result.json、issues.csv 和 report.html。
+包含规则目录构建、issue 本地化、摘要统计、HTML 模板渲染等能力。
+"""
 from __future__ import annotations
 
 import argparse
@@ -30,6 +35,7 @@ RULE_GROUP_KEYS = ("schema_rules", "range_rules", "row_rules", "relation_rules",
 
 
 def format_timestamp_display(iso_text: str) -> str:
+    """将 ISO 时间戳转为本地显示格式（含时区偏移）。"""
     try:
         dt = datetime.fromisoformat(iso_text)
     except ValueError:
@@ -44,6 +50,7 @@ def format_timestamp_display(iso_text: str) -> str:
 
 
 def load_issues(issue_file: Path) -> list[dict[str, Any]]:
+    """从 issue JSON 文件中加载 issues 列表。"""
     if not issue_file.exists():
         return []
     data = json.loads(issue_file.read_text(encoding="utf-8"))
@@ -52,6 +59,7 @@ def load_issues(issue_file: Path) -> list[dict[str, Any]]:
 
 
 def rule_group_label_zh(group_key: str) -> str:
+    """将规则组键转为中文标签。"""
     table = {
         "schema_rules": "结构规则",
         "range_rules": "范围规则",
@@ -64,6 +72,7 @@ def rule_group_label_zh(group_key: str) -> str:
 
 
 def check_label_zh(check: str) -> str:
+    """将 check 类型转为中文标签。"""
     table = {
         "required": "必填",
         "string": "字符串",
@@ -86,6 +95,7 @@ def check_label_zh(check: str) -> str:
 
 
 def schema_expectation_text(rule: dict[str, Any]) -> str:
+    """根据 schema 规则生成人类可读的期望值描述文本。"""
     check = str(rule.get("check", "")).strip().lower()
     if check == "required":
         return "不能为空"
@@ -130,6 +140,7 @@ def schema_expectation_text(rule: dict[str, Any]) -> str:
 
 
 def dataset_location_text(dataset_id: str, ds_cfg: dict[str, dict[str, Any]]) -> str:
+    """返回数据集的可读位置标识（文件名/工作表）。"""
     if not dataset_id:
         return "-"
     cfg = ds_cfg.get(dataset_id, {})
@@ -145,6 +156,7 @@ def dataset_location_text(dataset_id: str, ds_cfg: dict[str, dict[str, Any]]) ->
 
 
 def rule_checks_text(rule: dict[str, Any]) -> str:
+    """提取规则中 checks 字段的中文标签文本。"""
     checks = rule.get("checks")
     if isinstance(checks, list):
         labels = []
@@ -163,6 +175,7 @@ def rule_checks_text(rule: dict[str, Any]) -> str:
 
 
 def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict[str, dict[str, Any]]) -> tuple[str, str]:
+    """推断规则标题和描述，优先使用显式配置，否则按规则组自动生成。"""
     explicit_title = str(rule.get("title") or "").strip()
     explicit_desc = str(rule.get("description") or "").strip()
     if explicit_title:
@@ -247,6 +260,7 @@ def infer_rule_title_and_desc(rule: dict[str, Any], group_key: str, ds_cfg: dict
 
 
 def build_rule_catalog(compiled_rules: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """构建规则目录列表和按 rule_id 索引的字典。"""
     raw_rules = compiled_rules.get("rules", {})
     ds_cfg = dataset_configs(raw_rules) if isinstance(raw_rules, dict) else {}
     catalog: list[dict[str, Any]] = []
@@ -278,6 +292,7 @@ def build_rule_catalog(compiled_rules: dict[str, Any]) -> tuple[list[dict[str, A
 
 
 def summarize_input_files(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """从 manifest 中提取输入文件摘要信息。"""
     out: list[dict[str, Any]] = []
     files = manifest.get("files", [])
     if not isinstance(files, list):
@@ -318,6 +333,7 @@ def enrich_issues_with_rule_info(
     issues: list[dict[str, Any]],
     catalog_by_id: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    """为 issue 补充规则标题、描述和分组信息。"""
     out: list[dict[str, Any]] = []
     for issue in issues:
         x = dict(issue)
@@ -353,12 +369,14 @@ def localize_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def csv_escape(value: Any) -> str:
+    """将值转为 CSV 安全的字符串。"""
     if value is None:
         return ""
     return str(value)
 
 
 def write_issues_csv(path: Path, issues: list[dict[str, Any]]) -> None:
+    """将 issue 列表写入中文表头的 CSV 文件。"""
     path.parent.mkdir(parents=True, exist_ok=True)
     columns = [
         ("issue_id", "问题ID"),
@@ -393,6 +411,7 @@ def write_issues_csv(path: Path, issues: list[dict[str, Any]]) -> None:
 
 
 def build_summary(issues: list[dict[str, Any]]) -> dict[str, Any]:
+    """根据 issue 列表构建多维度摘要统计。"""
     severity_counts: dict[str, int] = {}
     category_counts: dict[str, int] = {}
     rule_counts: dict[str, int] = {}
@@ -472,6 +491,7 @@ def build_summary(issues: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def render_template(template: str, values: dict[str, str]) -> str:
+    """使用 {{key}} 占位符替换渲染模板。"""
     output = template
     for key, value in values.items():
         output = output.replace(f"{{{{{key}}}}}", value)
@@ -479,6 +499,7 @@ def render_template(template: str, values: dict[str, str]) -> str:
 
 
 def default_html_template() -> str:
+    """返回内置的默认 HTML 报告模板。"""
     return """<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -553,6 +574,7 @@ def render_reports(
     issue_files: list[Path],
     html_template_path: Path | None = None,
 ) -> tuple[Path, Path, Path]:
+    """汇总 issue 并生成 result.json、issues.csv 和 report.html。"""
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     compiled_rules = json.loads(compiled_rules_path.read_text(encoding="utf-8"))
@@ -626,6 +648,7 @@ def render_reports(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构建命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="渲染 JSON/CSV/HTML 报告。")
     parser.add_argument("--out", required=True, help="输出目录")
     parser.add_argument("--manifest", required=True, help="ingest_manifest.json 路径")
@@ -636,6 +659,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """报告渲染命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     out_dir = Path(args.out).resolve()
     manifest_path = Path(args.manifest).resolve()

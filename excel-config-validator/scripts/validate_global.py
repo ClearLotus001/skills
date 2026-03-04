@@ -1,4 +1,9 @@
-"""全局一致性校验（如 rule_id 全局唯一性）。"""
+# -*- coding: utf-8 -*-
+"""全局一致性校验（如 rule_id 全局唯一性）。
+
+遍历编译后的所有规则组，检查 rule_id 是否存在跨组或组内重复，
+输出 global_issues.json。
+"""
 from __future__ import annotations
 
 import argparse
@@ -15,6 +20,7 @@ from validation_common import make_exception_issue, make_issue
 
 
 def iter_rule_items(rules: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    """遍历所有规则组，返回 (组名, 规则项) 列表。"""
     out: list[tuple[str, dict[str, Any]]] = []
     for key in ("schema_rules", "range_rules", "row_rules", "relation_rules", "aggregate_rules", "global_rules"):
         values = rules.get(key, [])
@@ -27,6 +33,7 @@ def iter_rule_items(rules: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
 
 
 def validate_global(compiled_path: Path, out_dir: Path) -> Path:
+    """执行全局一致性校验并输出 global_issues.json。"""
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
     rules = compiled.get("rules", {})
     issues: list[dict[str, Any]] = []
@@ -91,6 +98,7 @@ def validate_global(compiled_path: Path, out_dir: Path) -> Path:
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构建命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="执行全局一致性校验。")
     parser.add_argument("--compiled-rules", required=True, help="compiled_rules.json 路径")
     parser.add_argument("--out", required=True, help="输出目录")
@@ -98,6 +106,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """全局校验命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     compiled_path = Path(args.compiled_rules).resolve()
     out_dir = Path(args.out).resolve()

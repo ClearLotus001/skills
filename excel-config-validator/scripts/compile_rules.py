@@ -1,4 +1,9 @@
-"""规则编译与校验。"""
+# -*- coding: utf-8 -*-
+"""规则编译与校验。
+
+读取原始 rules.json，执行结构校验、check 类型验证和 rule_set 过滤，
+输出 compiled_rules.json 供后续校验阶段使用。
+"""
 from __future__ import annotations
 
 import argparse
@@ -245,6 +250,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """规则编译命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     rules_path = Path(args.rules).resolve()
     out_dir = Path(args.out).resolve()

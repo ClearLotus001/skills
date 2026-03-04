@@ -8,88 +8,37 @@ interface:
 instructions: |
   ## 核心职责
   根据 rules.json 对 Excel/CSV 配置做确定性校验，输出可追溯结果。
+  完整技能文档参见 SKILL.md。
 
   ## 触发条件
-  - 当用户要求对 Excel/CSV 配置做规则校验时必须触发，包括 validate/check/verify、数据质量审计、跨文件/跨工作表一致性检查。
-  - 当用户要求将自然语言需求生成 rules.json 并执行校验时必须触发。
-  - 当用户要求输出 `result.json`、`issues.csv`、`report.html` 时必须触发。
-  - 即使用户只说“帮我检查配置表是否合规”也应触发。
-  - 仅在任务是浏览/编辑样式、公式建模或开放式分析且不涉及规则校验时不触发。
+  - 用户要求对 Excel/CSV 配置做规则校验（validate/check/verify）
+  - 用户要求将自然语言需求生成 rules.json 并执行校验
+  - 用户要求输出 result.json / issues.csv / report.html
+  - 即使用户只说"帮我检查配置表是否合规"也应触发
+  - 仅在浏览/编辑样式、公式建模或开放式分析时不触发
 
   ## 执行约束
-  - 必须通过 `python scripts/run_validator.py` 作为唯一入口执行。
-  - 校验模式必须提供 `--inputs`、`--rules`（`--scan` 模式可省略 `--rules`）。
-  - `--out` 可省略：脚本会自动创建临时输出目录。
-  - 不得臆测校验结果，必须读取 `<out>/_run.log` 与 `<out>/result.json`。
-  - 默认会清理中间文件；如需保留，显式传 `--keep-intermediate`。
+  - 唯一入口：`python scripts/run_validator.py`
+  - 校验模式需要 `--inputs` 和 `--rules`（`--scan` 模式可省略 `--rules`）
+  - 不得臆测结果，必须读取 `_run.log` 与 `result.json`
+  - 缺少输入路径时先向用户索取，不执行命令
+  - `--out` 可省略，脚本自动创建临时目录
 
-  ## 前置检查（先检查再执行）
-  - 若未提供 Excel/CSV 输入信息（`--inputs` 或等价路径信息），先向用户索取输入路径，不执行命令。
-  - 若用户未提供可执行的前置信息（输入路径、规则来源），只返回补充信息提示，不返回空结论。
-  - 若未提供输出目录，不阻塞执行，改为自动临时目录并在结果中返回该目录绝对路径。
-
-  ## 执行流程（必须按顺序）
-  1. 若输入结构未知，先执行 `--scan` 产出 `_scan.json`。
-  2. 根据扫描结果生成或确认 `rules.json`。
-  3. 执行正式校验命令。
-  4. 读取 `_run.log` 与 `result.json`，按 `error -> warn -> info` 汇报。
-
-  ## 公式文件处理与用户引导
-  - xlsx/xlsm 默认执行包结构预检（ZIP 完整性、必需部件、关键 XML、关系目标）。
-  - Excel 一律按 `data_only=True` 读取。
-  - 检测到公式单元格时，会自动走内置 LibreOffice 公式重算流程。
-  - 不要要求用户单独安装或调用其他技能脚本来重算公式。
-  - 若用户明确要求跳过包结构预检，可显式加 `--skip-xlsx-package-check`。
-  - 若日志出现“未找到 soffice”，明确引导用户安装 LibreOffice 或配置 `soffice` 到 PATH。
-  - 若日志出现“公式重算后发现 X 个 Excel 错误”，引导用户先修复公式错误再重试。
-  - 若用户接受告警继续执行，可显式加 `--allow-parser-warning`。
-
-  ## 标准执行命令
+  ## 标准命令
   ```bash
+  # 扫描
+  python scripts/run_validator.py --inputs <path> [--out <dir>] --scan
+
+  # 校验
   python scripts/run_validator.py \
-    --inputs <file_or_dir> \
-    --rules <rules.json> \
-    [--out <output_dir>] \
-    [--rule-set <name>] \
-    [--max-errors <N>] \
-    [--allow-parser-warning] \
-    [--skip-xlsx-package-check] \
-    [--chunk-size 2000] \
-    [--resume] \
-    [--keep-intermediate] \
-    [--log <path>]
+    --inputs <path> --rules <rules.json> \
+    [--out <dir>] [--rule-set <name>] [--max-errors <N>] \
+    [--allow-parser-warning] [--skip-xlsx-package-check] \
+    [--chunk-size 2000] [--resume] [--keep-intermediate] [--log <path>]
   ```
 
-  ## 仅扫描命令
-  ```bash
-  python scripts/run_validator.py \
-    --inputs <file_or_dir> \
-    [--out <output_dir>] \
-    --scan
-  ```
-
-  ## 标准回复模板（必须遵循）
-  - 缺少输入路径时：
-    `请先提供 Excel/CSV 输入路径（文件或目录）。当前未提供前置信息，暂不执行校验。`
-  - 自动使用临时输出目录时：
-    `未指定输出目录，已自动使用临时输出目录：<absolute_path>`
-  - 缺少 `soffice` 时：
-    `检测到公式单元格，但当前环境未找到 soffice。请安装 LibreOffice 或将 soffice 加入 PATH 后重试。`
-  - 重算后仍有公式错误时：
-    `公式重算后仍发现 Excel 错误（如 #REF!/#DIV/0!）。请先修复公式并保存文件，再重新执行校验。`
-  - 包结构预检告警时：
-    `检测到 Excel 文件包结构异常（如关键部件缺失或关系目标断链）。请先修复源文件，或在确认风险后使用 --skip-xlsx-package-check 跳过预检。`
-  - 用户接受带告警继续时：
-    `将按允许解析告警模式继续执行（已启用 --allow-parser-warning）。`
-  - 校验完成时：
-    `校验完成，输出目录：<absolute_path>。可先查看 <absolute_path>/_run.log 与 <absolute_path>/result.json。`
-
-  ## 输出文件
-  - `result.json`：完整结构化结果（issues + 汇总）
-  - `issues.csv`：问题清单
-  - `report.html`：交互式报告（含解析告警摘要）
-  - `_run.log`：运行日志
-
-  ## 不适用场景
-  - 仅查看表格内容
-  - 非结构化文本分析
+  ## 关键回复模板
+  - 缺少输入路径：`请先提供 Excel/CSV 输入路径（文件或目录）。`
+  - 自动临时目录：`未指定输出目录，已自动使用临时输出目录：<absolute_path>`
+  - 校验完成：`校验完成，输出目录：<absolute_path>。可先查看 _run.log 与 result.json。`
+  - 其他场景（公式、包结构等）的回复模板参见 SKILL.md。

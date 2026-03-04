@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 """端到端校验入口脚本。
 
 统一编排规则编译、输入解析、分阶段校验与报告生成流程。
+支持断点续跑、质量门禁、中间文件清理等能力，是整个校验管线的唯一入口。
 """
 from __future__ import annotations
 
@@ -28,6 +30,7 @@ from state_manager import RunState, load_state, mark_failure, mark_stage, mark_s
 
 
 def utc_now_compact() -> str:
+    """返回紧凑格式的当前 UTC 时间字符串（如 20260304T120000Z）。"""
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 

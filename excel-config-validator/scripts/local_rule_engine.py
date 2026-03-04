@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
 """值级校验引擎。
 
 按行执行 schema/range/row/aggregate 规则，并提供 row_rules 表达式能力。
+包含日期解析、范围比较、正则匹配、枚举白名单、递增/唯一性检查，
+以及基于安全 eval 的行级表达式引擎和聚合规则执行器。
 """
 from __future__ import annotations
 
@@ -825,6 +828,7 @@ def validate_range_rules(
     dataset_sheet_lookup: dict[str, dict[str, Any]],
     issues: list[dict[str, Any]],
 ) -> None:
+    """对每个数据集执行范围规则校验（min/max 边界检查）。"""
     range_rules = rules.get("range_rules", [])
     if not isinstance(range_rules, list):
         return

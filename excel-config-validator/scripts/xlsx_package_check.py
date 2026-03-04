@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
 """XLSX/XLSM 包结构预检。
 
 用于在解析前快速发现压缩包损坏、关键部件缺失和关系目标断链等问题。
+检查内容包括 ZIP 完整性、必需 XML 部件、关系文件目标指向等。
 """
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""中间文件清理工具。"""
+# -*- coding: utf-8 -*-
+"""中间文件清理工具。
+
+在校验流程成功完成后，清理中间产物（如 compiled_rules.json、
+ingest_manifest.json、_row_store、_stages 等），仅保留最终输出文件。
+"""
 from __future__ import annotations
 
 import shutil

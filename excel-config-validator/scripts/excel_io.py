@@ -1,4 +1,9 @@
-"""Excel 读写辅助函数（最新主链路）。"""
+# -*- coding: utf-8 -*-
+"""Excel 读写辅助函数（最新主链路）。
+
+提供 CSV/TSV 多编码读取、openpyxl 工作簿操作、列头提取与重复检测、
+公式单元格统计，以及通过 LibreOffice 宏进行公式重算的完整链路。
+"""
 from __future__ import annotations
 
 import csv
@@ -203,6 +208,7 @@ int close(int fd) {
 
 
 def _needs_linux_socket_shim() -> bool:
+    """检测当前 Linux 环境是否需要 AF_UNIX socket shim。"""
     if platform.system() != "Linux":
         return False
     try:
@@ -214,6 +220,7 @@ def _needs_linux_socket_shim() -> bool:
 
 
 def _ensure_linux_socket_shim() -> tuple[str | None, str]:
+    """确保 socket shim 共享库已编译就绪，返回 (路径, 错误)。"""
     if LINUX_SHIM_SO.exists():
         return str(LINUX_SHIM_SO), ""
 
@@ -241,6 +248,7 @@ def _ensure_linux_socket_shim() -> tuple[str | None, str]:
 
 
 def _build_soffice_env() -> tuple[dict[str, str], list[str]]:
+    """构建 LibreOffice 子进程环境变量，返回 (env, notes)。"""
     env = os.environ.copy()
     notes: list[str] = []
     env["SAL_USE_VCLPLUGIN"] = "svp"
@@ -264,6 +272,7 @@ def _build_soffice_env() -> tuple[dict[str, str], list[str]]:
 
 
 def _resolve_soffice_binary() -> str | None:
+    """查找 soffice 可执行文件路径，未找到时返回 None。"""
     bin_path = shutil.which("soffice")
     if bin_path:
         return bin_path
@@ -281,6 +290,7 @@ def _resolve_soffice_binary() -> str | None:
 
 
 def _macro_dir() -> Path:
+    """返回当前平台下 LibreOffice 用户宏目录。"""
     system_name = platform.system()
     if system_name == "Windows":
         appdata = os.environ.get("APPDATA")
@@ -293,6 +303,7 @@ def _macro_dir() -> Path:
 
 
 def _ensure_libreoffice_macro(soffice_bin: str, soffice_env: dict[str, str]) -> tuple[bool, str]:
+    """确保 RecalculateAndSave 宏已写入用户目录，返回 (成功, 错误)。"""
     macro_dir = _macro_dir()
     macro_file = macro_dir / MACRO_FILENAME
 
@@ -329,6 +340,7 @@ def _run_recalc_macro(
     timeout_seconds: int,
     soffice_env: dict[str, str],
 ) -> dict[str, Any]:
+    """调用 LibreOffice 宏执行公式重算，返回结果字典。"""
     macro_uri = "vnd.sun.star.script:Standard.Module1.RecalculateAndSave?language=Basic&location=application"
     cmd = [
         soffice_bin,

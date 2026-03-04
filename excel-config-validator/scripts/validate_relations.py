@@ -1,4 +1,10 @@
-"""跨表关联规则校验。"""
+# -*- coding: utf-8 -*-
+"""跨表关联规则校验。
+
+支持 fk_exists、set_equal、one_to_one、one_to_many、many_to_many 等
+多种关联模式，通过流式键集合对比检测外键缺失与键集合不一致问题，
+输出 relation_issues.json。
+"""
 from __future__ import annotations
 
 import argparse
@@ -23,20 +29,21 @@ from validation_common import (
 
 
 def relation_source_target(relation: dict[str, Any]) -> tuple[str, str]:
+    """提取关联规则中的源和目标数据集名称。"""
     source = str(relation.get("source_dataset") or "")
     target = str(relation.get("target_dataset") or "")
     return source, target
 
 
 def relation_keys(relation: dict[str, Any]) -> tuple[str, str]:
+    """提取关联规则中的源键和目标键列名。"""
     source_key = str(relation.get("source_key") or "")
     target_key = str(relation.get("target_key") or "")
     return source_key, target_key
 
 
-
-
 def table_key_ref(file_name: str, sheet: str, column: str) -> str:
+    """生成 '文件/工作表.列' 格式的键引用标识。"""
     return f"{file_name}/{sheet}.{column}"
 
 
@@ -100,6 +107,7 @@ def append_relation_key_issues(
     severity: str,
     issues: list[dict[str, Any]],
 ) -> None:
+    """按关联模式执行键集合对比，将检测到的问题追加到 issues。"""
     mode = str(relation.get("mode") or "fk_exists").strip().lower()
     allow_source_empty = bool(relation.get("allow_source_empty", False))
 
@@ -513,6 +521,7 @@ def append_relation_key_issues(
 
 
 def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) -> Path:
+    """执行跨表关联校验并输出 relation_issues.json。"""
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
     rules = compiled.get("rules", {})
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -628,6 +637,7 @@ def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) 
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构建命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="执行关联结构与键值校验。")
     parser.add_argument("--compiled-rules", required=True, help="compiled_rules.json 路径")
     parser.add_argument("--manifest", required=True, help="ingest_manifest.json 路径")
@@ -636,6 +646,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """关联校验命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     compiled_path = Path(args.compiled_rules).resolve()
     manifest_path = Path(args.manifest).resolve()

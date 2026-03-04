@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
 """Excel/CSV 解析引擎。
 
 用于读取输入文件并生成流式行存储（JSONL），供后续校验阶段复用。
+支持 xlsx/xlsm/csv/tsv 格式、列投影优化、公式重算、包结构预检，
+输出 ingest_manifest.json 与 _row_store/ 目录。
 """
 from __future__ import annotations
 
@@ -39,14 +42,17 @@ TEXT_SHEET_NAME = "_csv_"
 
 
 def text_format_label(path: Path) -> str:
+    """根据文件后缀返回文本格式标签（CSV 或 TSV）。"""
     return "TSV" if path.suffix.lower() == ".tsv" else "CSV"
 
 
 def text_delimiter(path: Path) -> str:
+    """根据文件后缀返回字段分隔符。"""
     return "\t" if path.suffix.lower() == ".tsv" else ","
 
 
 def discover_input_files(inputs: Path) -> list[Path]:
+    """在给定路径中递归发现所有支持格式的输入文件。"""
     if inputs.is_file():
         ext = inputs.suffix.lower()
         if inputs.name.startswith("~$"):
@@ -67,6 +73,7 @@ def discover_input_files(inputs: Path) -> list[Path]:
 
 
 def row_to_map(headers: list[str], row_values: list[Any]) -> dict[str, Any]:
+    """将行值列表与列头列表对齐，生成 {列名: 值} 字典。"""
     out: dict[str, Any] = {}
     width = max(len(headers), len(row_values))
     for idx in range(width):
@@ -82,6 +89,7 @@ def row_to_map(headers: list[str], row_values: list[Any]) -> dict[str, Any]:
 
 
 def build_projection_plan(compiled_rules_path: Path | None) -> list[dict[str, Any]]:
+    """根据编译规则构建列投影计划，用于减少不必要的列读取。"""
     if compiled_rules_path is None or not compiled_rules_path.exists():
         return []
 
@@ -157,6 +165,7 @@ def projection_item_matches(
     file_path: str,
     sheet: str,
 ) -> bool:
+    """判断投影计划项是否匹配指定的文件和工作表。"""
     expected_file = normalize_path_text(str(item.get("file", "")))
     file_pattern = normalize_path_text(str(item.get("file_pattern", "")))
     expected_sheet = str(item.get("sheet", "")).strip()
@@ -184,6 +193,7 @@ def projected_headers_for_sheet(
     sheet: str,
     headers: list[str],
 ) -> list[str]:
+    """根据投影计划筛选工作表需要保留的列头。"""
     if not headers:
         return []
     if not plan:
@@ -213,6 +223,7 @@ def projected_headers_for_sheet(
 
 
 def rows_store_path(out_dir: Path, file_path: Path, sheet_name: str) -> Path:
+    """生成行数据 JSONL 存储文件的路径。"""
     key = hashlib.sha1(f"{file_path.as_posix()}::{sheet_name}".encode("utf-8")).hexdigest()[:16]
     safe_sheet = "".join(ch if ch.isalnum() else "_" for ch in sheet_name)[:48] or "sheet"
     store_dir = out_dir / "_row_store"
@@ -226,6 +237,7 @@ def write_rows_store_stream(
     output_path: Path,
     chunk_size: int,
 ) -> int:
+    """将行迭代器按分块写入 JSONL 文件，返回写入行数。"""
     keep_all = projected_headers is None
     selected_headers = projected_headers or []
     size = max(1, int(chunk_size or 1))
@@ -253,6 +265,7 @@ def write_rows_store_stream(
 
 
 def scan_xlsx_extlst_sheet_xml(path: Path) -> list[str]:
+    """扫描 xlsx 包中包含 extLst 扩展节点的工作表 XML。"""
     out: list[str] = []
     try:
         with ZipFile(path) as zf:
@@ -443,6 +456,7 @@ def _scan_xlsx_file(path: Path) -> tuple[list[dict[str, Any]], list[str], list[s
 
 
 def duplicate_file_groups(files: list[Path]) -> dict[str, list[Path]]:
+    """按文件名分组，返回存在同名的文件组。"""
     groups: dict[str, list[Path]] = {}
     for file_path in files:
         groups.setdefault(file_path.name, []).append(file_path)
@@ -450,6 +464,7 @@ def duplicate_file_groups(files: list[Path]) -> dict[str, list[Path]]:
 
 
 def build_scan_payload(inputs: Path) -> dict[str, Any]:
+    """构建输入文件扫描摘要（用于 LLM 生成规则的上下文）。"""
     files = discover_input_files(inputs)
     if not files:
         raise ValueError(f"在 {inputs} 未发现可支持的输入文件")
@@ -494,6 +509,7 @@ def build_scan_payload(inputs: Path) -> dict[str, Any]:
 
 
 def write_scan_payload(inputs: Path, out_dir: Path) -> Path:
+    """将扫描摘要写入 _scan.json 并返回文件路径。"""
     payload = build_scan_payload(inputs=inputs)
     scan_path = out_dir / "_scan.json"
     atomic_write_json(scan_path, payload)
@@ -763,6 +779,7 @@ def build_manifest(
     row_chunk_size: int = 2000,
     skip_xlsx_package_check: bool = False,
 ) -> tuple[Path, str]:
+    """解析所有输入文件并输出 ingest_manifest.json，返回 (路径, input_hash)。"""
     files = discover_input_files(inputs)
     if not files:
         raise ValueError(f"在 {inputs} 未发现可支持的输入文件")
@@ -850,6 +867,7 @@ def build_manifest(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构建命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="扫描并解析 Excel/CSV/TSV 输入文件。")
     parser.add_argument("--inputs", required=True, help="输入文件或目录")
     parser.add_argument("--out", required=True, help="输出目录")
@@ -887,6 +905,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """解析引擎命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     inputs = Path(args.inputs).resolve()
     out_dir = Path(args.out).resolve()

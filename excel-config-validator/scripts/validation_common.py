@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
 """校验公共工具模块。
 
 提供 issue 构造、数据集定位、行数据读取等复用能力。
+包含数值/整数解析、最小位数校验、规范化键值、manifest 文件/工作表
+匹配与消歧、分块行数据迭代器等基础设施。
 """
 from __future__ import annotations
 
@@ -50,6 +53,7 @@ __all__ = [
 
 
 def parse_number(value: Any) -> float | None:
+    """将值解析为浮点数，非数值或布尔值返回 None。"""
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
@@ -67,6 +71,7 @@ def parse_number(value: Any) -> float | None:
 
 
 def parse_int_like(value: Any) -> int | None:
+    """将值解析为整数（含整数浮点如 1.0），否则返回 None。"""
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
@@ -89,6 +94,7 @@ def parse_int_like(value: Any) -> int | None:
 
 
 def has_min_digits(value: Any, min_digits: int) -> bool:
+    """判断值的整数部分是否具有至少 min_digits 位数字。"""
     if min_digits <= 0:
         return True
     if isinstance(value, str):
@@ -106,6 +112,7 @@ def has_min_digits(value: Any, min_digits: int) -> bool:
 
 
 def canonical_key(value: Any) -> str:
+    """将值转为规范化键字符串，用于关联比对。"""
     if is_empty(value):
         return ""
     if isinstance(value, bool):
@@ -225,6 +232,7 @@ def find_dataset_sheet(
 
 
 def rows_from_entry(entry: dict[str, Any]) -> list[dict[str, Any]]:
+    """从 entry 中一次性加载全部行数据。"""
     rows = entry.get("rows", [])
     if isinstance(rows, list) and rows:
         return rows

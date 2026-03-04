@@ -1,4 +1,9 @@
-"""数据集解析器。"""
+# -*- coding: utf-8 -*-
+"""数据集解析器。
+
+根据 rules.json 中的 datasets 配置，在 ingest_manifest 中定位对应的
+文件和工作表入口，解析失败时自动写入 issue。
+"""
 from __future__ import annotations
 
 from typing import Any

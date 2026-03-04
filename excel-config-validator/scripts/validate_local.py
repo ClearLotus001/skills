@@ -1,4 +1,9 @@
-"""单表局部校验（schema/range/row/aggregate）。"""
+# -*- coding: utf-8 -*-
+"""单表局部校验（schema/range/row/aggregate）。
+
+对每个数据集执行结构校验、范围校验、行表达式校验和聚合校验，
+输出 local_issues.json。
+"""
 from __future__ import annotations
 
 import argparse
@@ -33,6 +38,7 @@ def validate_schema_rules(
     dataset_sheet_lookup: dict[str, dict[str, Any]],
     issues: list[dict[str, Any]],
 ) -> None:
+    """对每个数据集执行 schema 结构校验（必填、类型、唯一性等）。"""
     schema_rules = rules.get("schema_rules", [])
     if not isinstance(schema_rules, list):
         return
@@ -137,6 +143,7 @@ def _enrich_issues_with_file_identity(
 
 
 def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> Path:
+    """执行局部校验并输出 local_issues.json。"""
     compiled = json.loads(compiled_path.read_text(encoding="utf-8"))
     rules = compiled.get("rules", {})
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -176,6 +183,7 @@ def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> P
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """构建命令行参数解析器。"""
     parser = argparse.ArgumentParser(description="执行局部结构、行级、范围与表达式校验。")
     parser.add_argument("--compiled-rules", required=True, help="compiled_rules.json 路径")
     parser.add_argument("--manifest", required=True, help="ingest_manifest.json 路径")
@@ -184,6 +192,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """局部校验命令行入口，返回退出码。"""
     args = build_parser().parse_args()
     compiled_path = Path(args.compiled_rules).resolve()
     manifest_path = Path(args.manifest).resolve()

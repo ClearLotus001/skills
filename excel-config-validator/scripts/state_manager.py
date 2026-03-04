@@ -1,6 +1,9 @@
+# -*- coding: utf-8 -*-
 """运行状态管理器。
 
 维护 run_state.json，用于断点续跑与阶段跟踪。
+提供 RunState 数据类以及 load/save/mark 系列函数，
+记录每个阶段的执行状态、已完成阶段列表与元数据。
 """
 from __future__ import annotations
 
@@ -66,6 +69,7 @@ def save_state(path: Path, state: RunState) -> None:
 
 
 def mark_stage(state: RunState, stage: str, checkpoint: dict[str, Any] | None = None) -> None:
+    """标记当前阶段并追加到已完成阶段列表。"""
     state.stage = stage
     if stage not in state.completed_stages:
         state.completed_stages.append(stage)
