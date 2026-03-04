@@ -1,7 +1,6 @@
-"""运行状态管理 — 维护 run_state.json 用于断点恢复和阶段跟踪。
+"""运行状态管理器。
 
-由 run_validator.py 内部调用。
-管理: run_state.json（运行 ID、当前阶段、耗时、元数据）
+维护 run_state.json，用于断点续跑与阶段跟踪。
 """
 from __future__ import annotations
 

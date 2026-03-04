@@ -20,7 +20,7 @@
 3. <规则3>
 
 输出目录：
-- <你的输出目录>
+- <你的输出目录（可选，不填将自动生成临时目录）>
 ```
 
 如果已有 `rules.json`，可直接指定：
@@ -38,9 +38,8 @@
 | 格式 | 后缀 | 解析库 |
 |---|---|---|
 | Excel 2007+ | `.xlsx` / `.xlsm` | openpyxl |
-| Excel 97-2003 | `.xls` | xlrd |
-| Excel Binary | `.xlsb` | pyxlsb |
 | CSV | `.csv` | 内置 csv（自动检测 UTF-8/GB18030/UTF-16 编码） |
+| TSV | `.tsv` | 内置 csv（分隔符 `\t`，自动检测 UTF-8/GB18030/UTF-16 编码） |
 
 ## 4. 命令行参数
 
@@ -48,16 +47,26 @@
 
 | 参数 | 必需 | 默认值 | 说明 |
 |---|---|---|---|
-| `--inputs` | 是 | - | 输入文件或目录路径 |
-| `--rules` | 是 | - | `rules.json` 规则文件路径 |
-| `--out` | 是 | - | 输出目录路径 |
+| `--inputs` | 条件必需 | - | 输入文件或目录路径；运行时必须提供，缺失时会提示并退出 |
+| `--rules` | 条件必需 | - | `rules.json` 规则文件路径；仅校验模式必需，`--scan` 模式可省略 |
+| `--out` | 否 | 自动临时目录 | 输出目录路径；未提供时自动创建临时目录并在终端打印绝对路径 |
 | `--rule-set` | 否 | 全部规则 | 按 `rule_sets` 中定义的分组名筛选执行规则 |
 | `--run-id` | 否 | UTC 时间戳 | 运行 ID，用于标识本次执行 |
+| `--scan` | 否 | 关闭 | 仅扫描输入元数据并输出 `_scan.json` 后退出（该模式可省略 `--rules`） |
+| `--log` | 否 | `<out>/_run.log` | 指定日志文件路径，终端输出会同步写入该文件 |
 | `--max-errors` | 否 | 无限制 | 质量门禁：错误数超过阈值时返回退出码 2 |
+| `--fail-on-parser-warning` | 否 | 开启 | 解析阶段出现告警时立即失败 |
 | `--allow-parser-warning` | 否 | 严格模式 | 允许解析告警继续执行（默认遇到解析告警会失败） |
+| `--skip-xlsx-package-check` | 否 | 关闭 | 跳过 xlsx/xlsm 包结构预检（默认会检查 ZIP 完整性、关键部件与关系目标） |
 | `--chunk-size` | 否 | 2000 | 行数据分块大小，影响内存与 I/O 平衡 |
-| `--keep-formula` | 否 | 读取计算值 | 读取公式文本而非计算值 |
+| `--keep-intermediate` | 否 | 自动清理 | 保留 `compiled_rules.json`、`ingest_manifest.json`、`_stages/`、`_row_store/` 等中间产物 |
 | `--resume` | 否 | 重新执行 | 从已有 `run_state.json` 断点续跑 |
+
+**前置规则**：
+
+- 未提供 `--inputs` 时不会执行（包括 `--scan`），会提示先补充输入路径。
+- 使用 `--scan` 时可不传 `--rules`；非 `--scan` 校验模式必须传 `--rules`。
+- 未提供 `--out` 时会自动创建临时输出目录，并在终端打印该目录绝对路径。
 
 **退出码**：
 
@@ -105,7 +114,7 @@
 
 - `file`：精确文件名匹配
 - `file_pattern`：通配符匹配（支持 `*`、`?`）
-- `sheet`：工作表名（CSV 文件固定为 `_csv_`）
+- `sheet`：工作表名（CSV/TSV 文件固定为 `_csv_`）
 - 未指定 `sheet` 时自动使用第一个工作表
 
 ### 5.3 schema_rules（结构/字段规则）
@@ -313,10 +322,10 @@
 | 模式 | 别名 | 说明 |
 |---|---|---|
 | `fk_exists` | - | 源键值必须在目标键集合中存在（外键检查） |
-| `set_equal` | `equal_set`、`same_set` | 源键集合与目标键集合完全一致 |
-| `one_to_one` | `1:1` | 双方键均唯一且集合相等（一对一） |
-| `one_to_many` | `1:N`、`1:n` | 目标键唯一，源键均在目标中存在（一对多） |
-| `many_to_many` | `N:N`、`n:n`、`M:N`、`m:n` | 双向存在性检查（多对多） |
+| `set_equal` | - | 源键集合与目标键集合完全一致 |
+| `one_to_one` | - | 双方键均唯一且集合相等（一对一） |
+| `one_to_many` | - | 目标键唯一，源键均在目标中存在（一对多） |
+| `many_to_many` | - | 双向存在性检查（多对多） |
 
 ### 5.7 aggregate_rules（聚合校验规则）
 
@@ -400,16 +409,24 @@ compile_rules → parse_excel → validate_local → validate_relations → vali
 | 局部校验 | `validate_local.py` | `_stages/local_issues.json` |
 | 关联校验 | `validate_relations.py` | `_stages/relation_issues.json` |
 | 全局校验 | `validate_global.py` | `_stages/global_issues.json` |
-| 报告生成 | `render_report.py` | `result.json` / `issues.csv` / `report.md` / `report.html` |
+| 报告生成 | `render_report.py` | `result.json` / `issues.csv` / `report.html`（含解析告警摘要） |
 
 ## 7. 结果输出目录
 
+默认保留最终产物：
+
 ```
 <out>/
-├── result.json          # 完整结构化结果（含 issues + 统计）
-├── issues.csv           # 表格化问题清单（19 列中文表头）
-├── report.md            # Markdown 摘要报告
-├── report.html          # 交互式 HTML 报告（筛选/排序/分页/分组视图）
+├── result.json   # 完整结构化结果（含 issues + 统计）
+├── issues.csv    # 表格化问题清单（19 列中文表头）
+├── report.html   # 交互式 HTML 报告（筛选/排序/分页/分组视图，含解析告警摘要）
+└── _run.log      # 运行日志
+```
+
+使用 `--keep-intermediate` 时，额外保留以下中间文件：
+
+```
+<out>/
 ├── run_state.json       # 运行状态（支持断点恢复）
 ├── compiled_rules.json  # 编译后规则（含摘要统计）
 ├── ingest_manifest.json # 解析清单（含行数据索引和解析说明）
@@ -420,20 +437,31 @@ compile_rules → parse_excel → validate_local → validate_relations → vali
 └── _row_store/          # 行数据 JSONL 分块存储
 ```
 
+`ingest_manifest.json` 中与本轮流程相关的关键字段：
+
+| 字段 | 说明 |
+|---|---|
+| `parse_options.excel_read_mode` | 固定为 `data_only`（优先读取当前缓存值） |
+| `parse_options.formula_recalc` | 固定为 `builtin-libreoffice-recalc`（本技能包内置重算链路） |
+| `parse_options.xlsx_package_check_enabled` | 是否开启 xlsx/xlsm 包结构预检（默认 `true`，传 `--skip-xlsx-package-check` 后为 `false`） |
+| `parse_options.xlsx_package_check_policy` | 固定为 `warning`（预检问题默认进入解析告警） |
+| `files[].parse_warnings` | 文件级解析告警（含包结构预检告警、公式重算告警等） |
+| `files[].parse_notes` | 文件级解析备注（含编码探测、包结构预检备注、公式重算运行环境备注等） |
+
 ## 8. 元数据探查工具
 
-在编写规则之前，可使用独立的元数据探查脚本快速了解文件结构：
+在编写规则之前，建议直接使用统一入口的 `--scan` 模式快速了解文件结构：
 
 ```powershell
-# 输出到 stdout
-python excel-config-validator/scripts/inspect_metadata.py C:\data\orders.xlsx C:\data\products.csv
-
-# 输出到文件（推荐，避免在某些环境中 stdout 被截断）
-python excel-config-validator/scripts/inspect_metadata.py C:\data\orders.xlsx C:\data\products.csv --out C:\data\metadata.json
+python excel-config-validator/scripts/run_validator.py `
+  --inputs C:\data\configs `
+  --out C:\data\output `
+  --scan
 ```
 
-输出各文件的工作表名和列头（JSON 格式），不读取行数据，适合快速摸清表结构。
-指定 `--out` 参数时结果写入文件，否则输出到 stdout。
+扫描结果输出到 `<out>/_scan.json`，包含文件、工作表、列头和预估行数信息。
+
+未提供 `--out` 时，`--scan` 模式也会自动创建临时输出目录，并在终端打印该目录绝对路径。
 
 ## 9. 可执行命令示例
 
@@ -479,12 +507,15 @@ python excel-config-validator/scripts/run_validator.py `
 
 ## 10. 解析行为说明
 
+- **表格优先解析**：Excel 工作表若存在 Table（ListObject），优先按表格区域解析；无表格时回退到整表区域。
 - **列投影**：解析阶段根据编译后规则自动只读取必要列，减少内存和校验开销。
-- **分块写入**：行数据按 `--chunk-size`（默认 2000）写入 `_row_store/*.jsonl`，`ingest_manifest.json` 只保存索引。
-- **编码检测**：CSV 文件自动尝试 UTF-8-sig → GB18030 → UTF-16，非 UTF-8 编码会在 `parse_notes` 中说明。
+- **流式分块写入**：行数据边读取边按 `--chunk-size`（默认 2000）写入 `_row_store/*.jsonl`，`ingest_manifest.json` 只保存索引。
+- **编码检测**：CSV/TSV 文件自动尝试 UTF-8-sig → GB18030 → UTF-16，非 UTF-8 编码会在 `parse_notes` 中说明。
 - **openpyxl 扩展告警**：检测到不支持的工作表扩展（extLst）时，会扫描 XML 给出根因说明而非静默忽略。
 - **临时文件跳过**：自动跳过 `~$` 开头的 Excel 临时文件和 `issues.csv` 等产物文件。
-- **公式处理**：默认 `data_only=True` 读取计算值；`--keep-formula` 读取公式文本。
+- **包结构预检（默认开启）**：xlsx/xlsm 会先执行 ZIP 完整性、必需部件、关键 XML 和 `.rels` 关系目标检查；如需跳过可用 `--skip-xlsx-package-check`。
+- **公式处理（最新主链路）**：默认 `data_only=True` 读取。若检测到公式单元格，会执行本技能包内置的 LibreOffice 公式重算流程；重算失败或仍存在 Excel 错误码会产生解析告警。
+- **运行环境备注**：公式重算的运行时信息（例如 `SAL_USE_VCLPLUGIN=svp`、Linux shim 启用/降级状态）会写入 `parse_notes`，便于环境问题排查。
 - **单条规则异常不中断**：校验阶段中某条规则执行异常时，该异常会被记录为 issue 并继续执行后续规则。
 - **阶段异常不中断**：某个校验阶段（local/relation/global）整体异常时，会写入空 issues 文件并继续后续阶段。
 
@@ -498,9 +529,11 @@ python excel-config-validator/scripts/run_validator.py `
 | 现象 | 可能原因 | 解决方法 |
 |---|---|---|
 | `rules.json` 编译失败 | 缺少 `datasets` 字段 / 规则引用未知数据集 | 检查 datasets 定义与规则中的 dataset 名称是否一致 |
-| 解析阶段失败 | 缺少 openpyxl/xlrd/pyxlsb 依赖 | `pip install openpyxl xlrd pyxlsb` |
+| 解析阶段失败 | 缺少 openpyxl 依赖 | `pip install openpyxl` |
 | 解析告警导致中止 | 默认严格模式 | 添加 `--allow-parser-warning` 参数 |
+| 包结构预检告警 | xlsx/xlsm 包损坏、关键部件缺失或关系目标断链 | 先修复源文件；若确认可忽略可加 `--skip-xlsx-package-check` |
 | CSV 编码错误 | 非 UTF-8/GB18030/UTF-16 编码 | 手动转换为 UTF-8 编码 |
+| 公式重算告警 | 公式重算失败或重算后仍有 Excel 错误码 | 先在 Excel/LibreOffice 重算并保存，修复公式错误后重试；确认本机 LibreOffice 可执行 |
 | 断点续跑异常 | `run_state.json` 与输入不匹配 | 删除输出目录重新执行 |
 | 报告中 issues 为 0 但有异常 | 校验阶段异常已被容错处理 | 查看 `run_state.json` 的 `stage_exceptions` 字段 |
 | 内存不足 | 关联校验目标键集合过大 | 减小 `--chunk-size`，或拆分数据集 |

@@ -1,30 +1,29 @@
-"""端到端执行入口 — 串联规则编译、文件解析、校验、报告全流程。
+"""端到端校验入口脚本。
 
-这是校验引擎的唯一执行入口。支持断点恢复（--resume）和质量门禁（--max-errors）。
-输入: Excel/CSV 文件 + rules.json
-输出: 完整校验输出（result.json、issues.csv、report.html 等）
+统一编排规则编译、输入解析、分阶段校验与报告生成流程。
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中，无论从哪个工作目录调用本脚本
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from common import atomic_write_json, setup_file_logging, severity_key
+from common import setup_file_logging, severity_key
 
 import compile_rules
-import inspect_metadata
 import parse_excel
 import render_report
 import validate_global
 import validate_local
 import validate_relations
+from cleanup_manager import cleanup_intermediate_files
 from state_manager import RunState, load_state, mark_failure, mark_stage, mark_success, save_state
 
 
@@ -60,73 +59,51 @@ def resolve_templates(base_dir: Path) -> Path:
 
 
 def scan_inputs(inputs: Path, out_dir: Path) -> int:
-    """扫描输入文件/目录的元数据（sheet 名、列头），写入 _scan.json。
-
-    替代单独调用 inspect_metadata.py，减少命令执行次数。
-    同时检测同名文件冲突并输出警告。
-    """
-    files = parse_excel.discover_input_files(inputs)
-    if not files:
-        print(f"[扫描] 在 {inputs} 未发现可支持的输入文件")
+    """扫描输入文件元数据（工作表、列头、预估行数）。"""
+    try:
+        scan_path = parse_excel.write_scan_payload(inputs=inputs, out_dir=out_dir)
+        scan_payload = load_json(scan_path)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[扫描] 扫描失败：{exc}")
         return 1
 
-    results = []
-    for file_path in files:
-        try:
-            result = inspect_metadata.inspect_file(file_path)
-            results.append(result)
-        except Exception as exc:  # noqa: BLE001
-            results.append({"file": file_path.name, "error": str(exc)})
+    files = scan_payload.get("files", [])
+    if not isinstance(files, list):
+        files = []
+    print(f"[扫描] 发现 {len(files)} 个文件：")
+    for result in files:
+        if not isinstance(result, dict):
+            continue
+        name = str(result.get("file", "?"))
+        sheets = result.get("sheets", {})
+        sheet_names = list(sheets.keys()) if isinstance(sheets, dict) else []
+        print(f"  {name} ({len(sheet_names)} 个工作表)")
+        for sn in sheet_names:
+            info = sheets.get(sn, {}) if isinstance(sheets, dict) else {}
+            headers = info.get("headers", []) if isinstance(info, dict) else []
+            row_count_estimate = int(info.get("row_count_estimate", 0) or 0) if isinstance(info, dict) else 0
+            print(f"    [{sn}] {len(headers)} 列, 约 {row_count_estimate} 行")
 
-    # 检测同名文件冲突
-    name_groups: dict[str, list[Path]] = {}
-    for file_path in files:
-        name_groups.setdefault(file_path.name, []).append(file_path)
-
-    duplicate_names = {name: paths for name, paths in name_groups.items() if len(paths) > 1}
-    if duplicate_names:
+    duplicate_names = scan_payload.get("duplicate_file_names", {})
+    if isinstance(duplicate_names, dict) and duplicate_names:
         print(f"\n[警告] 检测到 {len(duplicate_names)} 组同名文件冲突：")
         for name, paths in sorted(duplicate_names.items()):
+            if not isinstance(paths, list):
+                continue
             print(f"  {name} ({len(paths)} 个副本):")
             for p in paths:
-                size_kb = p.stat().st_size / 1024
-                print(f"    {p}  ({size_kb:.1f} KB)")
+                print(f"    {p}")
         print(
             "  提示：校验引擎将自动选择行数最多的版本。"
             "如需指定特定文件，请在 rules.json 的 dataset 中添加 file_path 或 sha256 字段。\n"
         )
-
-    scan_path = out_dir / "_scan.json"
-    scan_payload: dict[str, Any] = {
-        "files": results,
-        "file_count": len(results),
-    }
-    if duplicate_names:
-        scan_payload["duplicate_file_names"] = {
-            name: [str(p) for p in paths]
-            for name, paths in sorted(duplicate_names.items())
-        }
-    atomic_write_json(scan_path, scan_payload)
-
-    print(f"[扫描] 发现 {len(files)} 个文件：")
-    for result in results:
-        name = result.get("file", "?")
-        sheets = result.get("sheets", {})
-        if isinstance(sheets, dict):
-            sheet_names = list(sheets.keys())
-        else:
-            sheet_names = []
-        print(f"  {name} ({len(sheet_names)} 个工作表)")
-        for sn in sheet_names:
-            headers = sheets.get(sn, {}).get("headers", []) if isinstance(sheets, dict) else []
-            print(f"    [{sn}] {len(headers)} 列")
 
     print(f"\n[扫描] 元数据已写入：{scan_path}")
     return 0
 
 
 def _write_empty_issues(path: Path, stage: str, stage_zh: str) -> None:
-    """当校验阶段异常时，写入空 issues 文件以保证后续报告生成正常。"""
+    """当某阶段异常时写入空 issues 文件，保证报告阶段可继续。"""
     from common import atomic_write_json, utc_now_iso
     atomic_write_json(path, {
         "stage": stage,
@@ -140,9 +117,9 @@ def _write_empty_issues(path: Path, stage: str, stage_zh: str) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="执行端到端 Excel 配置校验流程。")
-    parser.add_argument("--inputs", required=True, help="输入文件或目录")
+    parser.add_argument("--inputs", default=None, help="输入文件或目录")
     parser.add_argument("--rules", default=None, help="rules.json 路径（--scan 模式下可省略）")
-    parser.add_argument("--out", required=True, help="运行输出目录")
+    parser.add_argument("--out", default=None, help="运行输出目录（不传则自动创建临时目录）")
     parser.add_argument("--rule-set", default=None, help="可选：规则分组 key")
     parser.add_argument("--run-id", default=None, help="可选：运行 ID")
     parser.add_argument("--resume", action="store_true", help="从已有 run_state.json 继续执行")
@@ -181,9 +158,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="行数据分块写入大小（默认 2000）",
     )
     parser.add_argument(
-        "--keep-formula",
+        "--keep-intermediate",
         action="store_true",
-        help="读取公式文本而非计算值（默认 data_only=True）",
+        help="保留中间文件（compiled_rules.json, ingest_manifest.json, _stages/, _row_store/ 等）",
+    )
+    parser.add_argument(
+        "--skip-xlsx-package-check",
+        action="store_true",
+        help="跳过 xlsx/xlsm 包结构预检",
     )
     parser.set_defaults(fail_on_parser_warning=True)
     return parser
@@ -192,22 +174,32 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     script_dir = Path(__file__).resolve().parent
-    out_dir = Path(args.out).resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if not args.inputs:
+        print("[提示] 未提供 Excel/CSV 输入路径，请先提供 --inputs 后再执行。")
+        return 1
 
-    # 设置日志重定向（解决 IDE 终端输出捕获问题和 CMD 窗口一闪而过问题）
+    inputs = Path(args.inputs).resolve()
+    if not inputs.exists():
+        print(f"[错误] 输入路径不存在：{inputs}")
+        return 1
+
+    out_arg = str(args.out).strip() if args.out else ""
+    out_dir = Path(out_arg).resolve() if out_arg else Path(tempfile.mkdtemp(prefix="excel-config-validator-"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if not out_arg:
+        print(f"[提示] 未提供 --out，已自动创建临时输出目录：{out_dir}")
+
+    # 初始化日志双写（终端 + 文件）
     log_path = args.log
     if log_path is None:
         log_path = out_dir / "_run.log"
     setup_file_logging(log_path)
 
-    inputs = Path(args.inputs).resolve()
-
-    # --scan 模式：仅扫描文件元数据后退出
+    # --scan：仅扫描元数据后退出
     if args.scan:
         return scan_inputs(inputs, out_dir)
 
-    # 正常校验模式需要 --rules 参数
+    # 常规校验模式必须传入 --rules
     if not args.rules:
         print("[错误] 校验模式需要 --rules 参数")
         return 1
@@ -258,13 +250,13 @@ def main() -> int:
                 fail_on_parser_warning=args.fail_on_parser_warning,
                 compiled_rules_path=compiled_path,
                 row_chunk_size=max(1, int(args.chunk_size or 1)),
-                openpyxl_data_only=not bool(args.keep_formula),
+                skip_xlsx_package_check=bool(args.skip_xlsx_package_check),
             )
             state.metadata["input_hash"] = input_hash
             state.metadata["manifest"] = manifest_path.as_posix()
             save_state(state_path, state)
 
-        # --- 校验阶段：异常不中断后续阶段 ---
+        # 分阶段校验：单阶段异常不阻断后续阶段
         if not (args.resume and local_path.exists()):
             mark_stage(state, "local")
             try:
@@ -329,7 +321,14 @@ def main() -> int:
 
         mark_success(state)
         save_state(state_path, state)
-        print(f"[成功] 校验完成。输出目录：{out_dir}")
+
+        # 清理中间产物，仅保留最终输出
+        if not args.keep_intermediate:
+            cleanup_intermediate_files(out_dir, keep_logs=True)
+            print(f"[成功] 校验完成。输出目录：{out_dir}")
+            print(f"[提示] 已清理中间文件，保留：result.json, issues.csv, report.html, _run.log")
+        else:
+            print(f"[成功] 校验完成。输出目录：{out_dir}")
         return 0
 
     except Exception as exc:  # noqa: BLE001

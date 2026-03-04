@@ -1,9 +1,4 @@
-"""单表/单列规则校验 — 执行 schema_rules、range_rules、row_rules。
-
-由 run_validator.py 内部调用，也可独立执行。
-输入: compiled_rules.json、ingest_manifest.json
-输出: _stages/local_issues.json
-"""
+"""单表局部校验（schema/range/row/aggregate）。"""
 from __future__ import annotations
 
 import argparse
@@ -12,10 +7,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso
+from dataset_resolver import build_dataset_lookup
 from local_rule_engine import (
     normalize_checks,
     validate_aggregate_rules,
@@ -25,59 +21,10 @@ from local_rule_engine import (
 )
 from validation_common import (
     dataset_configs,
-    find_dataset_sheet,
     iter_rows_from_entry,
     make_exception_issue,
     make_issue,
-    rows_from_entry,
 )
-
-
-def append_dataset_mapping_issues(
-    issues: list[dict[str, Any]],
-    manifest: dict[str, Any],
-    datasets: dict[str, dict[str, Any]],
-) -> dict[str, dict[str, Any]]:
-    lookup: dict[str, dict[str, Any]] = {}
-    for ds_name, ds_cfg in datasets.items():
-        entry, reason = find_dataset_sheet(manifest, ds_cfg)
-        if entry is not None:
-            lookup[ds_name] = entry
-            continue
-
-        expected_file = str(ds_cfg.get("file") or ds_cfg.get("file_pattern") or "")
-        expected_sheet = str(ds_cfg.get("sheet", ""))
-        if reason == "file_missing":
-            issues.append(
-                make_issue(
-                    category="local",
-                    rule_id="DATASET_FILE_MISSING",
-                    severity="error",
-                    message=f"数据集 '{ds_name}' 期望的文件 '{expected_file}' 不存在",
-                    file_name=expected_file,
-                    sheet=expected_sheet,
-                    row=0,
-                    column="",
-                    expected="文件存在",
-                    actual="文件缺失",
-                )
-            )
-        else:
-            issues.append(
-                make_issue(
-                    category="local",
-                    rule_id="DATASET_SHEET_MISSING",
-                    severity="error",
-                    message=f"数据集 '{ds_name}' 期望的工作表 '{expected_sheet}' 不存在",
-                    file_name=expected_file,
-                    sheet=expected_sheet,
-                    row=0,
-                    column="",
-                    expected="工作表存在",
-                    actual="工作表缺失",
-                )
-            )
-    return lookup
 
 
 def validate_schema_rules(
@@ -164,8 +111,8 @@ def _enrich_issues_with_file_identity(
     issues: list[dict[str, Any]],
     dataset_sheet_lookup: dict[str, dict[str, Any]],
 ) -> None:
-    """为 issues 补充 file_path 和 file_sha256，基于 dataset_sheet_lookup 反查。"""
-    # 构建 (file_name, sheet_name) → (path, sha256) 映射
+    """通过反查数据集映射补齐 file_path 与 file_sha256。"""
+    # 构建 (file_name, sheet_name) -> (path, sha256) 映射
     identity_map: dict[tuple[str, str], tuple[str, str]] = {}
     for entry in dataset_sheet_lookup.values():
         if not isinstance(entry, dict):
@@ -196,14 +143,14 @@ def validate_local(compiled_path: Path, manifest_path: Path, out_dir: Path) -> P
 
     issues: list[dict[str, Any]] = []
     datasets = dataset_configs(rules)
-    dataset_sheet_lookup = append_dataset_mapping_issues(issues, manifest, datasets)
+    dataset_sheet_lookup = build_dataset_lookup(manifest, datasets, issues)
 
     validate_schema_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_range_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_row_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
     validate_aggregate_rules(rules=rules, dataset_sheet_lookup=dataset_sheet_lookup, issues=issues)
 
-    # 为 issues 补充文件完整路径和 SHA-256 指纹
+    # 回填 issue 的完整路径与文件指纹
     _enrich_issues_with_file_identity(issues, dataset_sheet_lookup)
 
     issues.sort(

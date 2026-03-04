@@ -1,9 +1,4 @@
-"""跨表关联规则校验 — 执行 relation_rules（fk_exists、set_equal）。
-
-由 run_validator.py 内部调用，也可独立执行。
-输入: compiled_rules.json、ingest_manifest.json
-输出: _stages/relation_issues.json
-"""
+"""跨表关联规则校验。"""
 from __future__ import annotations
 
 import argparse
@@ -12,14 +7,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso
+from dataset_resolver import resolve_dataset
 from validation_common import (
     canonical_key,
     dataset_configs,
-    find_dataset_sheet,
     iter_rows_from_entry,
     make_exception_issue,
     make_issue,
@@ -39,53 +34,6 @@ def relation_keys(relation: dict[str, Any]) -> tuple[str, str]:
     return source_key, target_key
 
 
-def resolve_dataset_entry(
-    *,
-    manifest: dict[str, Any],
-    dataset_name: str,
-    dataset_cfg: dict[str, Any],
-    rule_id: str,
-    severity: str,
-    role_name: str,
-    issues: list[dict[str, Any]],
-) -> dict[str, Any] | None:
-    entry, reason = find_dataset_sheet(manifest, dataset_cfg)
-    if entry is not None:
-        return entry
-
-    file_text = str(dataset_cfg.get("file") or dataset_cfg.get("file_pattern") or "")
-    sheet_text = str(dataset_cfg.get("sheet", ""))
-    if reason == "file_missing":
-        issues.append(
-            make_issue(
-                category="relation",
-                rule_id=rule_id,
-                severity=severity,
-                message=f"数据集 '{dataset_name}' 的{role_name}文件 '{file_text}' 未找到",
-                file_name=file_text,
-                sheet=sheet_text,
-                row=0,
-                column="",
-                expected="文件存在",
-                actual="文件缺失",
-            )
-        )
-    else:
-        issues.append(
-            make_issue(
-                category="relation",
-                rule_id=rule_id,
-                severity=severity,
-                message=f"数据集 '{dataset_name}' 的{role_name}工作表 '{sheet_text}' 未找到",
-                file_name=file_text,
-                sheet=sheet_text,
-                row=0,
-                column="",
-                expected="工作表存在",
-                actual="工作表缺失",
-            )
-        )
-    return None
 
 
 def table_key_ref(file_name: str, sheet: str, column: str) -> str:
@@ -96,7 +44,7 @@ def _stream_key_set(
     entry: dict[str, Any],
     key_col: str,
 ) -> set[str]:
-    """流式扫描 entry 的行数据，构建 key 集合（不一次性加载全部行）。"""
+    """流式扫描行数据并构建键集合。"""
     key_set: set[str] = set()
     for chunk in iter_rows_from_entry(entry):
         for row_item in chunk:
@@ -115,7 +63,7 @@ def _stream_key_counter(
     entry: dict[str, Any],
     key_col: str,
 ) -> dict[str, int]:
-    """流式扫描 entry 的行数据，构建 key 计数器。"""
+    """流式扫描行数据并构建键计数器。"""
     counter: dict[str, int] = {}
     for chunk in iter_rows_from_entry(entry):
         for row_item in chunk:
@@ -132,27 +80,13 @@ def _stream_key_counter(
 
 SUPPORTED_MODES = {
     "fk_exists",
-    "set_equal", "equal_set", "same_set",
-    "one_to_one", "1:1",
-    "one_to_many", "1:n", "1:N",
-    "many_to_many", "n:n", "N:N", "m:n", "M:N",
+    "set_equal",
+    "one_to_one",
+    "one_to_many",
+    "many_to_many",
 }
 
 MAX_ISSUES_PER_RULE = 500
-
-
-def _normalize_mode(raw: str) -> str:
-    """将模式别名统一为标准名称。"""
-    m = raw.strip().lower()
-    if m in {"set_equal", "equal_set", "same_set"}:
-        return "set_equal"
-    if m in {"one_to_one", "1:1"}:
-        return "one_to_one"
-    if m in {"one_to_many", "1:n"}:
-        return "one_to_many"
-    if m in {"many_to_many", "n:n", "m:n"}:
-        return "many_to_many"
-    return m
 
 
 def append_relation_key_issues(
@@ -166,8 +100,7 @@ def append_relation_key_issues(
     severity: str,
     issues: list[dict[str, Any]],
 ) -> None:
-    raw_mode = str(relation.get("mode") or "fk_exists").strip().lower()
-    mode = _normalize_mode(raw_mode)
+    mode = str(relation.get("mode") or "fk_exists").strip().lower()
     allow_source_empty = bool(relation.get("allow_source_empty", False))
 
     source_headers = [str(x) for x in source_entry.get("headers", [])]
@@ -177,19 +110,19 @@ def append_relation_key_issues(
     target_file_name = str(target_entry.get("file", ""))
     target_sheet_name = str(target_entry.get("sheet", ""))
 
-    if raw_mode not in SUPPORTED_MODES:
+    if mode not in SUPPORTED_MODES:
         issues.append(
             make_issue(
                 category="relation",
                 rule_id=rule_id,
                 severity="error",
-                message=f"不支持的关联模式 '{raw_mode}'",
+                message=f"不支持的关联模式 '{mode}'",
                 file_name=source_file_name,
                 sheet=source_sheet_name,
                 row=0,
                 column="",
                 expected="fk_exists / set_equal / one_to_one / one_to_many / many_to_many",
-                actual=raw_mode,
+                actual=mode,
             )
         )
         return
@@ -248,7 +181,7 @@ def append_relation_key_issues(
     source_ref = table_key_ref(source_file_name, source_sheet_name, source_key)
     target_ref = table_key_ref(target_file_name, target_sheet_name, target_key)
 
-    # ---- set_equal: 集合完全一致 ----
+    # set_equal：两侧集合必须完全一致
     if mode == "set_equal":
         target_key_set = _stream_key_set(target_entry, target_key)
         source_key_set = _stream_key_set(source_entry, source_key)
@@ -288,7 +221,7 @@ def append_relation_key_issues(
             )
         return
 
-    # ---- one_to_one: 双方键唯一且集合一致 ----
+    # one_to_one：两侧都唯一且集合一致
     if mode == "one_to_one":
         target_counter = _stream_key_counter(target_entry, target_key)
         source_counter = _stream_key_counter(source_entry, source_key)
@@ -302,7 +235,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"1:1 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
+                    message=f"one_to_one 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
                     file_name=target_file_name,
                     sheet=target_sheet_name,
                     row=0,
@@ -321,7 +254,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"1:1 关联要求源键唯一，但有 {len(dup_source)} 个键重复",
+                    message=f"one_to_one 关联要求源键唯一，但有 {len(dup_source)} 个键重复",
                     file_name=source_file_name,
                     sheet=source_sheet_name,
                     row=0,
@@ -342,7 +275,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"1:1 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
+                    message=f"one_to_one 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
                     file_name=source_file_name,
                     sheet=source_sheet_name,
                     row=0,
@@ -357,7 +290,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"1:1 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
+                    message=f"one_to_one 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
                     file_name=target_file_name,
                     sheet=target_sheet_name,
                     row=0,
@@ -368,7 +301,7 @@ def append_relation_key_issues(
             )
         return
 
-    # ---- one_to_many: 目标键唯一，源键值存在于目标 ----
+    # one_to_many：目标键唯一，源键必须存在于目标键集合
     if mode == "one_to_many":
         target_counter = _stream_key_counter(target_entry, target_key)
 
@@ -381,7 +314,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"1:N 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
+                    message=f"one_to_many 关联要求目标键唯一，但有 {len(dup_target)} 个键重复",
                     file_name=target_file_name,
                     sheet=target_sheet_name,
                     row=0,
@@ -391,7 +324,7 @@ def append_relation_key_issues(
                 )
             )
 
-        # 流式检查源键是否存在于目标
+        # 流式检查源键是否存在于目标键集合
         target_key_set = set(target_counter.keys())
         issue_count = 0
         suppressed = 0
@@ -463,7 +396,7 @@ def append_relation_key_issues(
             )
         return
 
-    # ---- many_to_many: 双向存在性检查 ----
+    # many_to_many：双向存在性检查
     if mode == "many_to_many":
         target_key_set = _stream_key_set(target_entry, target_key)
         source_key_set = _stream_key_set(source_entry, source_key)
@@ -477,7 +410,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"N:N 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
+                    message=f"many_to_many 关联：源键中有 {len(missing_in_target)} 个值未在目标键中出现",
                     file_name=source_file_name,
                     sheet=source_sheet_name,
                     row=0,
@@ -492,7 +425,7 @@ def append_relation_key_issues(
                     category="relation",
                     rule_id=rule_id,
                     severity=severity,
-                    message=f"N:N 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
+                    message=f"many_to_many 关联：目标键中有 {len(missing_in_source)} 个值未在源键中出现",
                     file_name=target_file_name,
                     sheet=target_sheet_name,
                     row=0,
@@ -503,7 +436,7 @@ def append_relation_key_issues(
             )
         return
 
-    # ---- fk_exists: 外键存在性（默认模式，流式处理源行） ----
+    # fk_exists：外键存在性检查（默认模式）
     target_key_set = _stream_key_set(target_entry, target_key)
     issue_count = 0
     suppressed = 0
@@ -640,26 +573,14 @@ def validate_relations(compiled_path: Path, manifest_path: Path, out_dir: Path) 
                 source_cfg = datasets_cfg.get(source, {}) if source else {}
                 target_cfg = datasets_cfg.get(target, {}) if target else {}
 
-                source_entry = resolve_dataset_entry(
-                    manifest=manifest,
-                    dataset_name=source,
-                    dataset_cfg=source_cfg,
-                    rule_id=rule_id,
-                    severity=severity,
-                    role_name="源",
-                    issues=issues,
+                source_entry = resolve_dataset(
+                    manifest, source, datasets_cfg, rule_id, severity, issues, role_name="源"
                 )
                 if source_entry is None:
                     continue
 
-                target_entry = resolve_dataset_entry(
-                    manifest=manifest,
-                    dataset_name=target,
-                    dataset_cfg=target_cfg,
-                    rule_id=rule_id,
-                    severity=severity,
-                    role_name="目标",
-                    issues=issues,
+                target_entry = resolve_dataset(
+                    manifest, target, datasets_cfg, rule_id, severity, issues, role_name="目标"
                 )
                 if target_entry is None:
                     continue

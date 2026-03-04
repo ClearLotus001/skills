@@ -1,9 +1,4 @@
-"""全局一致性校验 — 检查规则定义的全局约束（如 rule_id 唯一性）。
-
-由 run_validator.py 内部调用，也可独立执行。
-输入: compiled_rules.json
-输出: _stages/global_issues.json
-"""
+"""全局一致性校验（如 rule_id 全局唯一性）。"""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, severity_rank, utc_now_iso

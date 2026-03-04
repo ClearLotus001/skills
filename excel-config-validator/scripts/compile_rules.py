@@ -1,9 +1,4 @@
-"""规则编译与校验 — 将 rules.json 编译为 compiled_rules.json。
-
-由 run_validator.py 内部调用，也可独立执行。
-输入: rules.json（原始规则定义）
-输出: compiled_rules.json（编译后规则 + 摘要统计）
-"""
+"""规则编译与校验。"""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import atomic_write_json, file_sha256, utc_now_iso
@@ -39,12 +34,6 @@ def dataset_ids_from_rules(rules: dict[str, Any]) -> set[str]:
     result: set[str] = set()
     if isinstance(datasets, dict):
         result.update(str(k) for k in datasets.keys())
-    elif isinstance(datasets, list):
-        for item in datasets:
-            if isinstance(item, dict):
-                ds = item.get("id")
-                if ds:
-                    result.add(str(ds))
     return result
 
 
@@ -62,14 +51,14 @@ def extract_dataset_ref(rule: dict[str, Any]) -> str | None:
 
 
 def _validate_schema_check_types(rule: dict[str, Any], idx: int, errors: list[str]) -> None:
-    """校验 schema_rules 中的 check type 是否为已支持类型。"""
-    # 单 check 格式
+    """校验 schema_rules 的 check 类型是否合法。"""
+    # 单 check 形式
     check = str(rule.get("check", "")).strip().lower()
     if check and check not in SUPPORTED_CHECK_TYPES:
         rid = rule.get("rule_id", f"schema_rules[{idx}]")
         errors.append(f"schema_rules '{rid}' 的 check 类型 '{check}' 不受支持，"
                        f"可用类型：{', '.join(sorted(SUPPORTED_CHECK_TYPES))}")
-    # 多 checks 格式
+    # checks 列表形式
     checks = rule.get("checks")
     if isinstance(checks, list):
         for ci, c in enumerate(checks):
@@ -92,7 +81,7 @@ def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
         errors.append("缺少必需顶层字段：datasets")
 
     if not any(rules.get(key) for key in RULE_KEYS):
-        errors.append("至少需要提供一种规则集合（schema/range/row/relation/global）")
+        errors.append("至少需要提供一种规则集合（schema/range/row/relation/aggregate/global）")
 
     datasets = dataset_ids_from_rules(rules)
     if not datasets:
@@ -110,7 +99,7 @@ def validate_rules(rules: dict[str, Any], rule_set: str | None) -> list[str]:
             if ds and ds not in datasets:
                 errors.append(f"{group_key}[{idx}] 引用了未知数据集 '{ds}'")
 
-            # schema_rules: 校验 check type 是否已支持
+            # schema_rules：校验 check 类型
             if group_key == "schema_rules":
                 _validate_schema_check_types(item, idx, errors)
 
@@ -209,15 +198,6 @@ def select_rules(raw_rules: dict[str, Any], rule_set: str | None) -> dict[str, A
     datasets = raw_rules.get("datasets", {})
     if isinstance(datasets, dict):
         out["datasets"] = {k: v for k, v in datasets.items() if str(k) in referenced_datasets}
-    elif isinstance(datasets, list):
-        filtered: list[dict[str, Any]] = []
-        for item in datasets:
-            if not isinstance(item, dict):
-                continue
-            ds_id = item.get("id")
-            if ds_id and str(ds_id) in referenced_datasets:
-                filtered.append(item)
-        out["datasets"] = filtered
     return out
 
 

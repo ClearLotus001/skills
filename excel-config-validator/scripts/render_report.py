@@ -1,9 +1,4 @@
-"""报告渲染 — 合并各阶段 issues 并生成 JSON/CSV/HTML 报告。
-
-由 run_validator.py 内部调用，也可独立执行。
-输入: ingest_manifest.json、compiled_rules.json、*_issues.json
-输出: result.json、issues.csv、report.html
-"""
+"""报告渲染与 issue 聚合。"""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +10,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
 
-# 确保 scripts/ 目录在导入路径中
+# 确保脚本在任意工作目录下都能导入同级模块
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import (
@@ -343,7 +338,7 @@ def enrich_issues_with_rule_info(
 
 
 def localize_issues(issues: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """补全 severity_zh / category_zh / message_zh 等本地化字段。"""
+    """补齐本地化字段（severity_zh、category_zh、message_zh 等）。"""
     localized: list[dict[str, Any]] = []
     for issue in issues:
         x = dict(issue)
@@ -495,9 +490,21 @@ def default_html_template() -> str:
   <h1>{{title}}</h1>
   <p>生成时间：{{generated_at}}</p>
   <p>问题总数：{{total_issues}}</p>
+  <p id="parseWarnSummary">解析告警：统计中...</p>
   <pre>{{severity_json}}</pre>
   <script>
     const issues = {{issues_json}};
+    const inputFiles = {{inputs_json}};
+    const parseWarnCount = (Array.isArray(inputFiles) ? inputFiles : []).reduce(
+      (acc, f) => acc + (Array.isArray(f.parse_warnings) ? f.parse_warnings.length : 0),
+      0
+    );
+    const summaryNode = document.getElementById("parseWarnSummary");
+    if (summaryNode) {
+      summaryNode.textContent = parseWarnCount > 0
+        ? `解析告警：${parseWarnCount} 条（详见完整 report 模板）`
+        : "解析告警：无";
+    }
     document.body.insertAdjacentHTML(
       "beforeend",
       `<p>已载入问题 ${issues.length} 条，可替换为自定义模板查看完整交互。</p>`
@@ -512,15 +519,12 @@ def _enrich_issues_with_manifest_identity(
     issues: list[dict[str, Any]],
     manifest: dict[str, Any],
 ) -> None:
-    """为缺少 file_path / file_sha256 的 issues 从 manifest 反查补充。
-
-    如果同名文件存在多个，则保留 issue 自带的已有值（由校验阶段填入）。
-    """
+    """为缺失文件标识的 issue 回填 file_path / file_sha256。"""
     files = manifest.get("files", [])
     if not isinstance(files, list):
         return
 
-    # 构建 file_name → (path, sha256) 映射（同名取最后一个，即最大行数的）
+    # 构建 file_name -> (path, sha256) 映射（同名时保留最后一条）
     name_to_identity: dict[str, tuple[str, str]] = {}
     for fi in files:
         if not isinstance(fi, dict):

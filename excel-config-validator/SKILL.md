@@ -1,201 +1,150 @@
 ---
 name: excel-config-validator
-description: 用自然语言描述 Excel/CSV 配置校验需求，自动转为规则并执行校验，输出 JSON/CSV/HTML 报告。适用于多文件、多 Sheet、跨文件关联的确定性检查。
+description: 当用户要求对 Excel/CSV 配置做规则校验时必须触发本技能，包括 validate/check/verify、数据质量审计、跨文件/跨工作表一致性检查、将自然语言需求生成 rules.json 并执行校验，以及输出 result.json/issues.csv/report.html。即使用户只说“帮我检查配置表是否合规”也应触发；仅在任务是浏览/编辑样式、公式建模或开放式分析且不涉及规则校验时不触发。
 ---
 
 # excel-config-validator
 
-## 何时使用
-- 用户提到"校验"、"检查"、"验证"、"validate"、"check" 配合 Excel/CSV/配置表等关键词。
-- 用户提供 Excel/CSV 文件并要求检查数据质量、格式合规、一致性。
-- 用户需要生成配置校验报告（JSON/CSV/HTML）。
-- 用户描述了跨文件/跨表的数据关联校验需求。
-- 用户已有 `rules.json` 并要求执行校验。
-- 用户提到"规则"、"rules" 配合数据/配置表等关键词。
-- 用户以自然语言描述规则，希望自动转换并执行。
+面向 Excel/CSV 配置文件的自动化规则校验技能。支持将自然语言需求转为 `rules.json`，并通过统一入口脚本完成扫描、校验与报告输出。
 
-## 不适用
-- 仅浏览、查看表格内容（非校验目的）。
-- 开放式数据分析、统计、可视化需求。
-- 非结构化文本校验。
-- Excel 公式编写或 VBA 开发。
+## 适用场景
 
-## 必要输入
-- `inputs`：Excel/CSV 文件或目录（`.xlsx/.xls/.xlsm/.xlsb/.csv`）。
-- 规则信息：自然语言规则描述，或现成 `rules.json`。
-- `out`：输出目录（可自定义）。
+当用户提出以下需求时使用本技能：
+- 校验 Excel/CSV 配置是否合规（`validate` / `check` / `verify`）
+- 按规则检查字段完整性、格式、唯一性、范围
+- 需要聚合校验（sum/count/avg 等）或全局一致性校验（如 rule_id 唯一性）
+- 校验跨文件/跨工作表关联关系（外键、集合一致、一对多等）
+- 输出结构化报告（`result.json` / `issues.csv` / `report.html`）
 
-## 执行约束（必须）
-1. 将自然语言规则明确化为 `rules.json`（有歧义先澄清）。
-2. 使用脚本执行，不用模型臆断结果。
-3. 执行入口固定为 `scripts/run_validator.py`。
-4. **尽量减少命令执行次数**：优先使用 `--scan` 模式探查文件，再一次性执行校验。
-5. **不要依赖终端输出**：所有输出自动写入日志文件 `<out>/_run.log`，执行后通过读取日志文件和 `result.json` 获取结果。
+以下场景不适用：
+- 仅浏览表格内容（不涉及规则校验）
+- 开放式探索分析或可视化
+- VBA 开发、公式建模等非规则校验任务
 
-## 规则生成工作流（自然语言 → rules.json）
-当用户以自然语言描述校验需求时，按以下步骤生成 `rules.json`：
+## 快速流程
 
-**第 1 步：探查文件结构**
-```bash
-python scripts/run_validator.py --inputs <输入文件或目录> --out <输出目录> --scan
-```
-读取 `<out>/_scan.json`，了解文件名、sheet 列表、每个 sheet 的列头和行数。
+1. 让用户提供输入文件路径与校验需求。
+2. 先扫描结构：
+   `python scripts/run_validator.py --inputs <path> --out <output> --scan`
+3. 根据扫描结果生成 `rules.json`。
+4. 执行校验：
+   `python scripts/run_validator.py --inputs <path> --rules <rules.json> --out <output>`
+5. 读取 `<output>/result.json` 与 `<output>/_run.log`，按严重级别汇总结果。
 
-**第 2 步：构建 datasets 映射**
-根据 `_scan.json` 中的文件和 sheet 信息，为每个需要校验的数据源定义逻辑名称。
+## 执行约束（必须遵守）
 
-**第 3 步：逐层构建规则**
-按需求依次添加（参考 `references/rule_schema.md` 获取完整字段定义）：
-1. `schema_rules` — 列存在性、类型、格式、唯一性等基础检查
-2. `range_rules` — 数值/日期范围约束
-3. `row_rules` — 行内跨列逻辑断言（参考引擎支持的内置函数）
-4. `aggregate_rules` — 聚合校验（sum/count/avg 等）
-5. `relation_rules` — 跨表外键、集合一致性、基数约束（参考 `references/relation_patterns.md`）
+1. 统一入口：必须使用 `scripts/run_validator.py` 执行，不要手工拼接阶段结果。
+2. 结果不可猜测：必须基于输出文件（`result.json`、`_run.log`）给出结论。
+3. 先扫后校：未知输入结构时，先执行 `--scan` 再生成规则。
+4. 优先少命令：尽量一次扫描 + 一次校验完成。
+5. 日志优先：终端输出可能不完整，以 `<out>/_run.log` 为准。
+6. 前置信息不足时不执行：缺少输入路径或规则来源时，先向用户索取信息，再执行。
+7. 未提供输出目录时不阻塞：允许省略 `--out`，脚本会自动创建临时目录，必须在回复中返回该绝对路径。
 
-**第 4 步：编写时注意**
-- 每条规则必须有唯一的 `rule_id`
-- `severity` 取值：`error`（必须修复）、`warn`（建议修复）、`info`（仅提示）
-- 有歧义的需求先向用户澄清，不要猜测
+## 标准命令
 
-**最小 rules.json 示例**
-```json
-{
-  "datasets": {
-    "users": { "file": "用户表.xlsx", "sheet": "Sheet1" }
-  },
-  "schema_rules": [
-    {
-      "rule_id": "USR_ID_REQUIRED",
-      "dataset": "users",
-      "column": "user_id",
-      "checks": [{ "type": "required" }, { "type": "unique" }],
-      "severity": "error"
-    }
-  ]
-}
-```
-
-## 标准执行
 ```bash
 python scripts/run_validator.py \
-  --inputs <输入文件或目录> \
+  --inputs <path> \
   --rules <rules.json> \
-  --out <输出目录> \
-  [--rule-set <规则分组>] \
-  [--max-errors <阈值>] \
+  [--out <output>] \
+  [--rule-set <subset>] \
+  [--max-errors <limit>] \
   [--allow-parser-warning] \
-  [--chunk-size <分块大小>] \
-  [--keep-formula] \
+  [--skip-xlsx-package-check] \
+  [--chunk-size <size>] \
+  [--keep-intermediate] \
   [--resume] \
-  [--log <自定义日志路径>]
+  [--log <custom_log_path>]
 ```
 
-说明：
-- 日志自动写入 `<out>/_run.log`（也可通过 `--log` 自定义路径），执行完成后读取日志文件获取执行输出。
-- 默认开启严格解析（`fail_on_parser_warning=true`），如需放宽可传 `--allow-parser-warning`。
-- 默认 `data_only=True`（读取公式计算值）；如需读取公式文本可传 `--keep-formula`。
-- 校验引擎采用 chunk 流式处理，大文件不会导致内存溢出。
-- 单条规则异常不会中断整体流程，异常会被记录在 issues 中并继续执行。
+## 当前解析主链路
 
-## 执行后获取结果
-执行完成后（**不要依赖终端输出**）：
-1. 读取 `<out>/_run.log` 获取执行日志（包含进度、警告、错误信息）。
-2. 读取 `<out>/result.json` 获取完整校验结果。
-3. 提示用户打开 `<out>/report.html` 查看交互式报告。
+- xlsx/xlsm 默认执行包结构预检（ZIP 完整性、必需部件、关键 XML、关系目标）。
+- Excel 统一按 `data_only=True` 读取。
+- 发现公式单元格时，直接使用本技能包内置的 LibreOffice 公式重算流程。
+- 公式重算失败或重算后仍存在 Excel 错误码时，会产生解析告警。
+- 如需跳过包结构预检，可显式使用 `--skip-xlsx-package-check`。
 
-### 结果解读与呈现
-读取 `result.json` 后，按以下顺序向用户呈现：
-1. **总览**：读取 `summary.total_issues` 和 `summary.severity_counts_zh`，给出问题总数和严重级别分布。
-2. **按严重级别分层**：先呈现 error 级别问题（必须修复），再呈现 warn（建议修复），info 可省略。
-3. **高频问题聚焦**：读取 `summary.top_rules`，对出现次数最多的规则违规给出修复建议。
-4. **按文件/Sheet 分组**：读取 `summary.by_file_sheet`，帮助用户定位问题集中的文件。
-5. 最后提示用户可打开 `report.html` 查看完整交互式报告（支持筛选、排序、分页、搜索）。
+## 公式文件引导策略（最佳实践）
 
-## 异常处理
-当脚本执行失败或返回非零退出码时：
-1. **读取日志**：读取 `<out>/_run.log` 定位错误信息。
-2. **常见错误修复**：
-   - `rules.json 编译失败` → 检查 JSON 语法和字段引用，参考 `references/troubleshooting.md`
-   - `文件未找到` → 检查 `--inputs` 路径和 dataset 中的 file/file_pattern 配置
-   - `缺少 openpyxl/xlrd/pyxlsb` → 执行 `pip install -r requirements.txt`
-   - `解析阶段告警` → 添加 `--allow-parser-warning` 或修复源文件，参考 `references/edge_cases.md`
-3. **断点恢复**：如果部分阶段已完成，可用 `--resume` 从断点继续，无需重跑全流程。
-4. **详细排查**：参考 `references/troubleshooting.md` 获取更多诊断指引。
+1. 默认自动处理
+   - 只要执行 `run_validator.py`，公式重算会在解析阶段自动触发。
+   - 不要要求用户额外安装或调用其他技能脚本。
+2. 失败分流
+   - 出现“未找到 soffice”：引导用户安装 LibreOffice 或配置 `soffice` 到 PATH。
+   - 出现“公式重算后发现 X 个 Excel 错误”：引导用户先修复公式错误再重试。
+3. 严格与容错策略
+   - 默认严格模式：解析告警会终止流程。
+   - 用户接受告警继续执行时，显式增加 `--allow-parser-warning`。
 
-## 脚本职责（按执行顺序）
-- `scripts/compile_rules.py`：校验并编译 `rules.json`，输出 `compiled_rules.json`（含规则摘要）。
-- `scripts/parse_excel.py`：解析输入 Excel/CSV，按规则做列投影只读取必要列，行数据按分块写入 `_row_store/*.jsonl`，输出 `ingest_manifest.json`。
-- `scripts/validate_local.py`：执行单表/单列规则（schema/range/row），输出 `_stages/local_issues.json`。
-- `scripts/validate_relations.py`：执行跨表关联规则，输出 `_stages/relation_issues.json`。
-- `scripts/validate_global.py`：执行全局规则完整性检查，输出 `_stages/global_issues.json`。
-- `scripts/render_report.py`：合并问题并渲染 `result.json / issues.csv / report.html`。
-- `scripts/run_validator.py`：唯一端到端入口，负责串联全流程与失败恢复。
+## 前置检查与回复模板（最佳实践）
 
-## 固定输出
-```
+1. 缺少输入路径（不执行）
+   - 触发条件：用户未提供 Excel/CSV 文件或目录路径。
+   - 回复模板：`请先提供 Excel/CSV 输入路径（文件或目录）。当前未提供前置信息，暂不执行校验。`
+2. 未提供输出目录（可执行）
+   - 触发条件：用户提供了可执行输入，但未提供 `--out`。
+   - 动作：直接执行，使用脚本自动创建的临时输出目录。
+   - 回复模板：`未指定输出目录，已自动使用临时输出目录：<absolute_path>`
+3. 校验完成
+   - 回复模板：`校验完成，输出目录：<absolute_path>。可先查看 <absolute_path>/_run.log 与 <absolute_path>/result.json。`
+4. 缺少 `soffice`
+   - 触发条件：解析告警包含“未找到 soffice”。
+   - 回复模板：`检测到公式单元格，但当前环境未找到 soffice。请安装 LibreOffice 或将 soffice 加入 PATH 后重试。`
+5. 重算后仍有公式错误
+   - 触发条件：解析告警包含“公式重算后发现 X 个 Excel 错误”。
+   - 回复模板：`公式重算后仍发现 Excel 错误（如 #REF!/#DIV/0!）。请先修复公式并保存文件，再重新执行校验。`
+6. 用户接受告警继续
+   - 触发条件：用户明确允许带告警继续。
+   - 回复模板：`将按允许解析告警模式继续执行（已启用 --allow-parser-warning）。`
+7. 包结构预检告警
+   - 触发条件：解析告警包含“包结构预检”。
+   - 回复模板：`检测到 Excel 文件包结构异常（如关键部件缺失或关系目标断链）。请先修复源文件，或在确认风险后使用 --skip-xlsx-package-check 跳过预检。`
+
+## 结果读取顺序
+
+1. 读取 `<out>/_run.log` 确认执行状态。
+2. 读取 `<out>/result.json` 获取总览和 issue 明细。
+3. 按 `error -> warn -> info` 顺序汇报问题。
+4. 使用 `summary.top_rules` 和 `summary.by_file_sheet` 定位重点问题。
+5. 引导用户打开 `<out>/report.html` 查看交互式报告（含解析告警摘要）。
+
+## 输出结构
+
+最终输出（默认保留）：
+
+```text
 <out>/
-├── result.json          # 完整结构化结果（含 issues + 统计）
-├── issues.csv           # 表格化问题清单
-├── report.html          # 交互式 HTML 报告（筛选/排序/分页）
-├── run_state.json       # 运行状态（支持断点恢复）
-├── compiled_rules.json  # 编译后规则（含摘要统计）
-├── ingest_manifest.json # 解析清单（含行数据索引）
-├── _run.log             # 执行日志（所有输出自动写入，解决终端捕获问题）
-├── _scan.json           # 输入文件元数据（--scan 模式输出）
-├── _stages/             # 中间校验结果
-│   ├── local_issues.json
-│   ├── relation_issues.json
-│   └── global_issues.json
-└── _row_store/          # 行数据 JSONL 分块存储
+├── result.json
+├── issues.csv
+├── report.html
+└── _run.log
 ```
 
-## 当前已实现校验
-- `datasets`：文件/工作表存在性检查（支持 `file` 与 `file_pattern`）。
-  - **同名文件消歧**：当输入目录包含多个同名文件时，引擎自动选择行数最多的版本。可通过 dataset 配置的 `sha256` 或 `file_path` 字段精确指定文件：
-    ```json
-    {
-      "datasets": {
-        "my_dataset": {
-          "file": "配置表.xlsx",
-          "sheet": "Sheet1",
-          "sha256": "35d8dd3b...",
-          "file_path": "subdir/配置表.xlsx"
-        }
-      }
-    }
-    ```
-    优先级：`sha256` 精确匹配 > `file_path` 路径匹配 > 行数最多。
-  - **文件身份追踪**：每个 issue 附带 `file_path`（完整路径）和 `file_sha256`（SHA-256 指纹），CSV/MD 报告中同步展示。
-  - **扫描阶段检测**：`--scan` 模式会检测同名文件冲突，在 `_scan.json` 中输出 `duplicate_file_names` 字段并打印告警。
-- `schema_rules`：
-  - 列存在性检查（缺列）
-  - 行级检查：`required`、`string`、`numeric`、`min_digits`、`increasing`、`unique`
-  - 时间类检查：`date`、`datetime_format`
-  - 文本检查：`max_length`、`min_length`、`regex`
-  - 枚举检查：`enum` / `whitelist`（支持 `case_insensitive`）
-  - 数值检查：`positive`、`non_negative`
-  - 条件检查：`conditional_required`（when 表达式触发）
-- `range_rules`：
-  - 数值范围与日期/时间范围检查（`min`/`max`）
-  - 开闭区间控制（`include_min`/`include_max`）
-  - 可空控制（`allow_empty`）
-- `row_rules`：
-  - 行表达式断言（`assert`）
-  - 条件触发（`when`）
-  - 条件分支（`branches` + `else_assert`）
-  - 内置函数：`value/text/num/intv/empty/exists/match`
-- `relation_rules`：
-  - 数据集/文件/工作表/键列存在性
-  - 外键存在性（`fk_exists`）
-  - 集合一致性（`set_equal`）
-  - 基数约束（`one_to_one`、`one_to_many`、`many_to_many`）
-- `global`：`rule_id` 跨规则组重复检查。
-- 报告：
-  - `result.json` 含严重级别/类别/规则统计与分组摘要
-  - `report.html` 支持明细表/按类别分组双视图、筛选、排序、分页、搜索
+中间产物（默认自动清理，`--keep-intermediate` 可保留）：
 
-## 当前未完整实现
-- `row_rules` 的结构化 then/else 动作（当前以表达式断言为主）。
+```text
+<out>/
+├── _scan.json
+├── run_state.json
+├── compiled_rules.json
+├── ingest_manifest.json
+├── _stages/
+└── _row_store/
+```
 
-## 使用文档
-- 项目级使用文档在：`/docs/excel-config-validator-usage.md`
+## 规则编写建议
+
+- 每条规则必须有唯一 `rule_id`。
+- `severity` 推荐：`error` / `warn` / `info`。
+- 关联模式仅使用标准值：`fk_exists` / `set_equal` / `one_to_one` / `one_to_many` / `many_to_many`。
+- 有歧义的自然语言需求，先向用户确认再落规则。
+
+## 参考资料
+
+- 使用文档：`/docs/excel-config-validator-usage.md`
+- 规则结构：`references/rule_schema.md`
+- 关联规则示例：`references/relation_patterns.md`
+- 故障排查：`references/troubleshooting.md`
+- 边界场景：`references/edge_cases.md`

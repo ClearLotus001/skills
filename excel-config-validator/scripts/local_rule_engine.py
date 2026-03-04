@@ -1,17 +1,6 @@
-"""值级校验引擎 — 逐行执行 schema/range/row/aggregate 规则检查。
+"""值级校验引擎。
 
-被 validate_local.py 调用。
-支持检查类型: required、string、numeric、min_digits、date、datetime_format、
-max_length、regex、increasing、enum、unique、min_length、positive、
-non_negative、conditional_required
-
-row_rules 内置函数:
-  基础: value/text/num/intv/empty/exists/match
-  日期: date_val/days_between/days_since/today/year/month/day
-  字符串: strip/lower/upper/contains/starts_with/ends_with
-  跨行: prev_value/prev_text/prev_num
-  多列: sum_cols/coalesce/in_list
-  标量: len/min/max/abs/round/str/int/float/bool
+按行执行 schema/range/row/aggregate 规则，并提供 row_rules 表达式能力。
 """
 from __future__ import annotations
 
@@ -149,30 +138,27 @@ MAX_EXPRESSION_LENGTH = 500
 
 
 def _safe_str(v: Any) -> str:
-    """安全的 str() 包装：限制输出长度以防 DoS。"""
+    """安全版 str()：限制输出长度，避免异常放大。"""
     s = str(v)
     return s[:10000] if len(s) > 10000 else s
 
 
 def _safe_int(v: Any) -> int:
-    """安全的 int() 包装：限制输入范围。"""
+    """安全版 int()：限制超长输入。"""
     if isinstance(v, str) and len(v) > 50:
         raise ValueError("整数字符串过长")
     return int(v)
 
 
 def _safe_float(v: Any) -> float:
-    """安全的 float() 包装：限制输入范围。"""
+    """安全版 float()：限制超长输入。"""
     if isinstance(v, str) and len(v) > 50:
         raise ValueError("浮点数字符串过长")
     return float(v)
 
 
 def compile_row_expression(expr: str) -> tuple[Any | None, str | None]:
-    """预编译表达式字符串为 code 对象，返回 (code, error)。
-
-    编译一次后可在循环中反复 eval(code, ...)，避免每行重复解析。
-    """
+    """预编译表达式字符串，返回 (code, error)。"""
     if len(expr) > MAX_EXPRESSION_LENGTH:
         return None, f"表达式长度 {len(expr)} 超过限制 {MAX_EXPRESSION_LENGTH}"
     try:
@@ -186,9 +172,9 @@ def _build_eval_env(
     row_values: dict[str, Any],
     prev_row_values: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """构建 eval 执行环境，包含所有内置函数。"""
+    """构建表达式执行环境，注入内置函数。"""
 
-    # --- 基础访问 ---
+    # 基础访问函数
     def value(column: str, default: Any = None) -> Any:
         return row_values.get(column, default)
 
@@ -209,23 +195,23 @@ def _build_eval_env(
         return not empty(column)
 
     def match(pattern: str, data: Any) -> bool:
-        """正则全匹配。data 直接作为待匹配文本。"""
+        """正则全匹配，data 作为待匹配文本。"""
         try:
             return re.fullmatch(pattern, value_text(data)) is not None
         except re.error:
             return False
 
-    # --- 日期运算 ---
+    # 日期函数
     def date_val(column: str) -> datetime | None:
-        """解析列值为 datetime 对象。"""
+        """将列值解析为 datetime。"""
         return parse_datetime_value(row_values.get(column))
 
     def today() -> datetime:
-        """返回当天零点的 datetime 对象。"""
+        """返回今天零点的 datetime。"""
         return datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
     def days_between(col1: str, col2: str) -> int | None:
-        """返回 col2 - col1 的天数差。正值表示 col2 更晚。"""
+        """返回 col2 - col1 的天数差。"""
         d1 = parse_datetime_value(row_values.get(col1))
         d2 = parse_datetime_value(row_values.get(col2))
         if d1 is None or d2 is None:
@@ -233,7 +219,7 @@ def _build_eval_env(
         return (d2 - d1).days
 
     def days_since(column: str) -> int | None:
-        """返回从列日期到今天的天数差。"""
+        """返回该列日期到今天的天数。"""
         d = parse_datetime_value(row_values.get(column))
         if d is None:
             return None
@@ -254,54 +240,54 @@ def _build_eval_env(
         d = parse_datetime_value(row_values.get(column))
         return d.day if d is not None else None
 
-    # --- 字符串增强 ---
+    # 字符串增强函数
     def strip(column: str) -> str:
-        """获取列值并去除首尾空白。"""
+        """读取列值并去除首尾空白。"""
         return value_text(row_values.get(column)).strip()
 
     def lower(column: str) -> str:
-        """获取列字符串值并转小写。"""
+        """读取列值并转为小写。"""
         return text(column).lower()
 
     def upper(column: str) -> str:
-        """获取列字符串值并转大写。"""
+        """读取列值并转为大写。"""
         return text(column).upper()
 
     def contains(column: str, substr: str) -> bool:
-        """检查列文本是否包含子串。"""
+        """判断列文本是否包含子串。"""
         return substr in text(column)
 
     def starts_with(column: str, prefix: str) -> bool:
-        """检查列文本是否以指定前缀开头。"""
+        """判断列文本是否以前缀开头。"""
         return text(column).startswith(prefix)
 
     def ends_with(column: str, suffix: str) -> bool:
-        """检查列文本是否以指定后缀结尾。"""
+        """判断列文本是否以后缀结尾。"""
         return text(column).endswith(suffix)
 
-    # --- 跨行引用 ---
+    # 跨行引用函数
     def prev_value(column: str, default: Any = None) -> Any:
-        """获取上一行的列原始值。第一行返回 default。"""
+        """读取上一行列原始值；首行返回 default。"""
         if prev_row_values is None:
             return default
         return prev_row_values.get(column, default)
 
     def prev_text(column: str, default: str = "") -> str:
-        """获取上一行的列字符串值。"""
+        """读取上一行列字符串值。"""
         if prev_row_values is None:
             return default
         v = prev_row_values.get(column, default)
         return value_text(v).strip()
 
     def prev_num(column: str) -> float | None:
-        """获取上一行的列数值。"""
+        """读取上一行列数值。"""
         if prev_row_values is None:
             return None
         return parse_number(prev_row_values.get(column))
 
-    # --- 多列聚合辅助 ---
+    # 多列辅助函数
     def sum_cols(*cols: str) -> float | None:
-        """对多列的数值求和。任一列无法解析为数字时返回 None。"""
+        """多列求和；任一列非数字则返回 None。"""
         total = 0.0
         for col in cols:
             n = parse_number(row_values.get(col))
@@ -311,7 +297,7 @@ def _build_eval_env(
         return total
 
     def coalesce(*cols: str) -> Any:
-        """返回多列中第一个非空值。"""
+        """返回多个列中第一个非空值。"""
         for col in cols:
             v = row_values.get(col)
             if not is_empty(v):
@@ -319,14 +305,14 @@ def _build_eval_env(
         return None
 
     def in_list(val: Any, items: Any) -> bool:
-        """检查值是否在给定列表/元组中。"""
+        """判断值是否在给定列表/元组中。"""
         if isinstance(items, (list, tuple, set, frozenset)):
             return val in items
         return False
 
     return {
         "row": row_values,
-        # 基础
+        # 基础函数
         "value": value,
         "text": text,
         "num": num,
@@ -334,7 +320,7 @@ def _build_eval_env(
         "empty": empty,
         "exists": exists,
         "match": match,
-        # 日期
+        # 日期函数
         "date_val": date_val,
         "today": today,
         "days_between": days_between,
@@ -342,22 +328,22 @@ def _build_eval_env(
         "year": year,
         "month": month,
         "day": day,
-        # 字符串
+        # 字符串函数
         "strip": strip,
         "lower": lower,
         "upper": upper,
         "contains": contains,
         "starts_with": starts_with,
         "ends_with": ends_with,
-        # 跨行
+        # 跨行函数
         "prev_value": prev_value,
         "prev_text": prev_text,
         "prev_num": prev_num,
-        # 多列
+        # 多列函数
         "sum_cols": sum_cols,
         "coalesce": coalesce,
         "in_list": in_list,
-        # 标量
+        # 标量函数
         "len": len,
         "min": min,
         "max": max,
@@ -381,15 +367,7 @@ def safe_eval_row_expression(
     compiled_code: Any | None = None,
     prebuilt_env: dict[str, Any] | None = None,
 ) -> tuple[Any | None, str | None]:
-    """安全执行行级表达式。
-
-    :param expr: 表达式字符串（仅在 compiled_code 为 None 时解析）。
-    :param row_values: 当前行的列值字典。
-    :param prev_row_values: 上一行的列值字典（可选，用于跨行引用）。
-    :param compiled_code: 预编译的 code 对象（可选，传入后忽略 expr 解析）。
-    :param prebuilt_env: 预构建的 eval 环境字典（可选，传入后跳过
-        _build_eval_env 调用，用于同一行多次求值时复用以提升性能）。
-    """
+    """安全执行行表达式。"""
     if compiled_code is None and len(expr) > MAX_EXPRESSION_LENGTH:
         return None, f"表达式长度 {len(expr)} 超过限制 {MAX_EXPRESSION_LENGTH}"
 
@@ -458,8 +436,8 @@ def append_value_check_issue(
         )
     )
 
-    # 被 validate_local 和 validate_row_rules 等函数内部使用
-    # file_path / file_sha256 可由调用方从 entry 中提取并传入
+    # 供 validate_local/validate_row_rules 等内部流程复用。
+    # file_path / file_sha256 由调用方从 entry 中提取后传入。
 
 
 def validate_rule_on_rows(
@@ -892,7 +870,7 @@ def validate_range_rules(
                 )
                 continue
 
-            # 第一次遍历：仅获取 sample_value 用于类型推断
+            # 第一遍：仅提取样本值用于类型推断
             sample_value = None
             for chunk in iter_rows_from_entry(entry):
                 for row_item in chunk:
@@ -941,7 +919,7 @@ def validate_range_rules(
                 )
                 continue
 
-            # 第二次遍历：流式逐 chunk 执行范围校验（不全量收集）
+            # 第二遍：按分块流式执行范围校验（不整表加载）
             for chunk in iter_rows_from_entry(entry):
                 for row_item in chunk:
                     if not isinstance(row_item, dict):
@@ -1040,11 +1018,7 @@ def _compile_branches(
     sheet: str,
     issues: list[dict[str, Any]],
 ) -> list[dict[str, Any]] | None:
-    """预编译 branches 中所有 when/assert 表达式。
-
-    返回编译后的分支列表 [{compiled_when, compiled_assert, message, ...}]。
-    编译失败时向 issues 追加错误并返回 None。
-    """
+    """预编译 branches 中的 when/assert 表达式。"""
     compiled_branches: list[dict[str, Any]] = []
     for bi, branch in enumerate(branches):
         if not isinstance(branch, dict):
@@ -1141,14 +1115,14 @@ def validate_row_rules(
             sheet = str(entry.get("sheet", ""))
 
             if is_branches_mode:
-                # ---- branches 条件分支模式 ----
+                # branches 条件分支模式
                 compiled_branches = _compile_branches(
                     branches_raw, rule_id, severity, file_name, sheet, issues,
                 )
                 if compiled_branches is None:
                     continue
 
-                # else_assert 编译
+                # 编译 else_assert
                 else_expr = str(rule.get("else_assert", "")).strip()
                 compiled_else = None
                 if else_expr:
@@ -1184,12 +1158,12 @@ def validate_row_rules(
                         if not isinstance(values, dict):
                             continue
 
-                        # 每行构建一次 env，所有 branch 评估复用
+                        # 每行构建一次执行环境，供所有分支复用
                         row_env = _build_eval_env(values, prev_row_values)
 
                         matched_branch = False
                         for branch in compiled_branches:
-                            # 评估 when 条件
+                            # 计算 when 条件
                             if branch["compiled_when"] is not None:
                                 w_result, w_err = safe_eval_row_expression(
                                     branch["when_expr"],
@@ -1218,7 +1192,7 @@ def validate_row_rules(
                                 if not bool(w_result):
                                     continue
 
-                            # when 匹配或无 when，执行 assert
+                            # 条件命中或未设置 when 时执行 assert
                             matched_branch = True
                             a_result, a_err = safe_eval_row_expression(
                                 branch["assert_expr"],
@@ -1270,7 +1244,7 @@ def validate_row_rules(
                         if rule_aborted:
                             break
 
-                        # 无分支匹配时执行 else_assert
+                        # 无分支命中时执行 else_assert
                         if not matched_branch and compiled_else is not None:
                             e_result, e_err = safe_eval_row_expression(
                                 else_expr,
@@ -1321,7 +1295,7 @@ def validate_row_rules(
                         prev_row_values = values
 
             else:
-                # ---- 传统单 when/assert 模式 ----
+                # 传统 when/assert 模式
                 message = str(rule.get("message", "")).strip() or f"行规则表达式未满足: {assert_expr}"
 
                 compiled_when = None
@@ -1373,12 +1347,15 @@ def validate_row_rules(
                         if not isinstance(values, dict):
                             continue
 
+                        row_env = _build_eval_env(values, prev_row_values)
+
                         if compiled_when is not None:
                             when_result, when_error = safe_eval_row_expression(
                                 when_expr,
                                 values,
                                 prev_row_values=prev_row_values,
                                 compiled_code=compiled_when,
+                                prebuilt_env=row_env,
                             )
                             if when_error:
                                 if not expression_error_reported:
@@ -1406,6 +1383,7 @@ def validate_row_rules(
                             values,
                             prev_row_values=prev_row_values,
                             compiled_code=compiled_assert,
+                            prebuilt_env=row_env,
                         )
                         if err:
                             if not expression_error_reported:
@@ -1469,11 +1447,7 @@ def _aggregate_column(
     func: str,
     group_by: str,
 ) -> dict[str, Any]:
-    """对数据集的指定列执行聚合运算。
-
-    返回 ``{"<group_key>": result, ...}``。
-    当 group_by 为空时，key 固定为 ``"__ALL__"``。
-    """
+    """对数据集指定列执行聚合并返回结果映射。"""
     accumulators: dict[str, list[float]] = {}
     distinct_sets: dict[str, set[str]] = {}
     count_map: dict[str, int] = {}
@@ -1504,7 +1478,7 @@ def _aggregate_column(
                     distinct_sets[group_key].add(value_text(raw_value).strip())
                 continue
 
-            # sum / avg / min / max — 需要数值
+            # sum / avg / min / max 仅对可解析数值生效
             num_val = parse_number(raw_value)
             if num_val is None:
                 continue
@@ -1541,24 +1515,7 @@ def validate_aggregate_rules(
     dataset_sheet_lookup: dict[str, dict[str, Any]],
     issues: list[dict[str, Any]],
 ) -> None:
-    """执行 aggregate_rules — 对数据集列进行聚合运算并断言。
-
-    规则格式示例::
-
-        {
-          "rule_id": "AGG_001",
-          "dataset": "orders",
-          "column": "金额",
-          "function": "sum",
-          "group_by": "部门",         // 可选
-          "assert": "result <= 1000000",
-          "message": "部门总金额不能超过100万",
-          "severity": "error"
-        }
-
-    支持的 function: sum, count, avg, min, max, distinct_count。
-    assert 表达式中可使用 ``result``（聚合值）和 ``group``（分组键）。
-    """
+    """执行 aggregate_rules：聚合后对结果断言。"""
     aggregate_rules = rules.get("aggregate_rules", [])
     if not isinstance(aggregate_rules, list):
         return
@@ -1637,7 +1594,7 @@ def validate_aggregate_rules(
                 )
                 continue
 
-            # 预编译断言表达式
+            # 预编译 assert 表达式
             compiled_assert, compile_err = compile_row_expression(assert_expr)
             if compile_err:
                 append_value_check_issue(

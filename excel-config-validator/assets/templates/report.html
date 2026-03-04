@@ -352,6 +352,19 @@
           </div>
         </section>
 
+        <!-- Parse warnings summary -->
+        <section class="rounded-xl" id="parseWarningsBlock">
+          <div class="flex items-center justify-between px-3 py-2.5">
+            <h2 class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="w-0.5 h-3.5 rounded-full bg-brand-500"></span>解析告警摘要
+            </h2>
+            <span id="parseWarningsCount" class="text-[10px] text-slate-400 font-medium"></span>
+          </div>
+          <div class="px-3 pb-3">
+            <ul id="parseWarningsList" class="space-y-1.5"></ul>
+          </div>
+        </section>
+
         <!-- Rules catalog removed from sidebar, moved to main content area -->
 
         <!-- Rule details block -->
@@ -591,7 +604,21 @@
     function populateRuleDropdown() {
       const sel = document.getElementById("ruleFilter");
       const map = new Map();
-      for (const r of issues) { const rid = String(r.rule_id || ""); if (rid && !map.has(rid)) map.set(rid, ruleOptionLabel(r)); }
+
+      // 1) 优先按规则目录构建，保证下拉选项覆盖“全部规则”（不仅是命中 issue 的规则）。
+      for (const r of ruleCatalog) {
+        const rid = String(r.rule_id || "").trim();
+        if (!rid) continue;
+        if (!map.has(rid)) map.set(rid, ruleOptionLabel(r));
+      }
+
+      // 2) 回填 issue 中可能出现但目录里没有的 rule_id（兼容历史数据或异常规则）。
+      for (const r of issues) {
+        const rid = String(r.rule_id || "").trim();
+        if (!rid) continue;
+        if (!map.has(rid)) map.set(rid, ruleOptionLabel(r));
+      }
+
       const opts = ['<option value="">全部规则</option>'];
       Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1], "zh-CN")).forEach(([rid, label]) => { opts.push(`<option value="${esc(rid)}">${esc(label)}</option>`); });
       sel.innerHTML = opts.join("");
@@ -641,6 +668,61 @@
           </div>
           ${ruleSheetsHtml}
           ${otherSheetsHtml}
+        </li>`;
+      }).join("");
+    }
+
+    function renderParseWarningsSummary() {
+      const root = document.getElementById("parseWarningsList");
+      const countEl = document.getElementById("parseWarningsCount");
+      if (!root) return;
+
+      const rows = [];
+      for (const f of inputFiles) {
+        const warnings = Array.isArray(f.parse_warnings) ? f.parse_warnings : [];
+        const notes = Array.isArray(f.parse_notes) ? f.parse_notes : [];
+        if (warnings.length === 0) continue;
+        rows.push({
+          name: f.name || "-",
+          warnings,
+          notes,
+        });
+      }
+
+      const totalWarnings = rows.reduce((acc, item) => acc + item.warnings.length, 0);
+      if (countEl) countEl.textContent = `${totalWarnings} 条`;
+
+      if (!rows.length) {
+        root.innerHTML = `<li class="p-3 rounded-lg border border-emerald-200 bg-emerald-50/60 text-[11px] text-emerald-700 leading-relaxed">
+          当前未发现解析告警（含包结构预检告警）。
+        </li>`;
+        return;
+      }
+
+      root.innerHTML = rows.map((item, idx) => {
+        const previewWarnings = item.warnings.slice(0, 3);
+        const extraWarnings = item.warnings.slice(3);
+        const extraId = `parseWarnExtra_${idx}`;
+        const noteText = item.notes.find(n => String(n).includes("包结构预检：摘要")) || "";
+
+        return `<li class="p-2.5 rounded-lg border border-amber-200 bg-amber-50/60 text-[11px] text-amber-800 leading-relaxed">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-semibold text-slate-700 truncate" data-tip="${esc(item.name)}">${esc(item.name)}</span>
+            <span class="shrink-0 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-semibold">${item.warnings.length} 条</span>
+          </div>
+          <ul class="mt-1.5 space-y-1">
+            ${previewWarnings.map(w => `<li class="break-words" data-tip="${esc(w)}">• ${esc(w)}</li>`).join("")}
+          </ul>
+          ${extraWarnings.length ? `
+            <button type="button" onclick="document.getElementById('${extraId}').classList.toggle('hidden'); this.querySelector('.arrow').classList.toggle('rotate-90')" class="mt-1 text-[10px] text-amber-700 hover:text-amber-800 cursor-pointer flex items-center gap-1">
+              <svg class="arrow w-3 h-3 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              其余 ${extraWarnings.length} 条告警
+            </button>
+            <ul id="${extraId}" class="hidden mt-1 space-y-1">
+              ${extraWarnings.map(w => `<li class="break-words" data-tip="${esc(w)}">• ${esc(w)}</li>`).join("")}
+            </ul>
+          ` : ""}
+          ${noteText ? `<div class="mt-1.5 pt-1.5 border-t border-amber-200 text-[10px] text-amber-700" data-tip="${esc(noteText)}">${esc(noteText)}</div>` : ""}
         </li>`;
       }).join("");
     }
@@ -1207,6 +1289,7 @@
     populateRuleDropdown();
     initCustomSelects();
     renderInputFiles();
+    renderParseWarningsSummary();
     renderRuleDetails();
     renderRuleCatalog();
     resetFilter();

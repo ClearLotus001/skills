@@ -1,7 +1,6 @@
-"""校验公共工具 — 提供 issue 构造、数据集查找、行数据读取等共用函数。
+"""校验公共工具模块。
 
-被 validate_local.py、validate_relations.py、validate_global.py、local_rule_engine.py 引用。
-核心功能: make_issue、find_dataset_sheet、iter_rows_from_entry、canonical_key
+提供 issue 构造、数据集定位、行数据读取等复用能力。
 """
 from __future__ import annotations
 
@@ -28,6 +27,8 @@ __all__ = [
     "atomic_write_json",
     "canonical_key",
     "category_label_zh",
+    "make_dataset_missing_issue",
+    "make_column_missing_issue",
     "dataset_configs",
     "file_matches",
     "find_dataset_sheet",
@@ -131,7 +132,7 @@ def canonical_key(value: Any) -> str:
 
 
 def _build_entry(file_item: dict[str, Any], sheet: dict[str, Any]) -> dict[str, Any]:
-    """从 manifest 文件条目和工作表条目构建统一的 entry 字典。"""
+    """将 manifest 文件项与 sheet 项组装为统一入口结构。"""
     sheet_rows = sheet.get("rows", [])
     sheet_rows_file = str(sheet.get("rows_file", "")).strip()
     return {
@@ -151,10 +152,7 @@ def _disambiguate_candidates(
     ds_cfg: dict[str, Any],
     expected_sheet: str,
 ) -> list[tuple[dict[str, Any], dict[str, Any]]]:
-    """从候选文件中收集所有匹配的 (file_item, sheet_item) 对。
-
-    返回列表按行数降序排列，方便取最完整的文件。
-    """
+    """收集候选 (file_item, sheet_item) 并按优先级排序。"""
     expected_sha256 = str(ds_cfg.get("sha256", "")).strip().lower()
     expected_path = str(ds_cfg.get("file_path", "")).strip()
     expected_path_norm = normalize_path_text(expected_path) if expected_path else ""
@@ -189,15 +187,7 @@ def find_dataset_sheet(
     manifest: dict[str, Any],
     ds_cfg: dict[str, Any],
 ) -> tuple[dict[str, Any] | None, str]:
-    """在 manifest 中查找与 dataset 配置匹配的文件/工作表。
-
-    消歧策略（按优先级）:
-      1. ds_cfg 中指定 sha256 → 精确匹配文件哈希
-      2. ds_cfg 中指定 file_path → 精确匹配完整路径
-      3. 同名多文件 → 选择行数最多的（最完整的版本）
-
-    返回的 entry 中包含 sha256 和完整路径，供下游 issue / 报告引用。
-    """
+    """在 manifest 中定位与数据集配置匹配的文件与工作表。"""
     expected_file = str(ds_cfg.get("file", "")).strip()
     file_pattern = str(ds_cfg.get("file_pattern", "")).strip()
     expected_sheet = str(ds_cfg.get("sheet", "")).strip()
@@ -215,7 +205,7 @@ def find_dataset_sheet(
 
     best_file, best_sheet = pairs[0]
 
-    # 同名多文件时打印警告
+    # 同名文件命中多个候选时打印消歧信息
     if len(pairs) > 1:
         chosen_path = str(best_file.get("path", ""))
         chosen_sha = str(best_file.get("sha256", ""))[:12]
@@ -310,7 +300,7 @@ def make_exception_issue(
     sheet: str = "",
     context: str = "",
 ) -> dict[str, Any]:
-    """将 Python 异常转为标准 issue，用于异常不中断流程。"""
+    """将异常转为标准 issue，避免流程中断。"""
     import traceback
 
     exc_type = type(exc).__name__
@@ -337,11 +327,7 @@ def iter_rows_from_entry(
     entry: dict[str, Any],
     chunk_size: int = 2000,
 ) -> Any:
-    """按 chunk 逐块从 JSONL 文件读取行数据的生成器。
-
-    每次 yield 一个 list[dict]，长度最多 chunk_size。
-    如果 entry 中内嵌了 rows 列表，则直接按 chunk_size 分块 yield。
-    """
+    """按分块方式读取 entry 对应的行数据。"""
     rows = entry.get("rows", [])
     if isinstance(rows, list) and rows:
         for i in range(0, len(rows), chunk_size):
@@ -375,3 +361,62 @@ def iter_rows_from_entry(
                     buffer = []
     if buffer:
         yield buffer
+
+
+# ============================================================================
+# 便捷 issue 构造函数
+# ============================================================================
+
+
+def make_dataset_missing_issue(
+    dataset_name: str,
+    file_text: str,
+    sheet_text: str,
+    rule_id: str,
+    severity: str,
+    role_name: str = "",
+    category: str = "local",
+) -> dict[str, Any]:
+    """构造“数据集缺失”类 issue。"""
+    prefix = f"{role_name}" if role_name else ""
+    if not file_text:
+        message = f"数据集 '{dataset_name}' 的{prefix}文件未配置"
+        reason = "文件未配置"
+    else:
+        message = f"数据集 '{dataset_name}' 的{prefix}文件 '{file_text}' 未找到"
+        reason = "文件缺失"
+
+    return make_issue(
+        category=category,
+        rule_id=rule_id,
+        severity=severity,
+        message=message,
+        file_name=file_text,
+        sheet=sheet_text,
+        row=0,
+        column="",
+        expected="文件存在",
+        actual=reason,
+    )
+
+
+def make_column_missing_issue(
+    column: str,
+    sheet: str,
+    file_name: str,
+    rule_id: str,
+    severity: str = "error",
+) -> dict[str, Any]:
+    """构造“列缺失”类 issue。"""
+    return make_issue(
+        category="local",
+        rule_id=rule_id,
+        severity=severity,
+        message=f"工作表 '{sheet}' 缺少必需列 '{column}'",
+        file_name=file_name,
+        sheet=sheet,
+        row=1,
+        column=column,
+        expected=f"列 '{column}' 存在",
+        actual="列缺失",
+    )
